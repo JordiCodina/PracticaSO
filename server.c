@@ -12,15 +12,14 @@
 #define ERROR_LISTEN "Error en el listen del socket\n"
 #define ERROR_ACCEPT "Error en el accept de la conexión\n"
 #define MAX_TRIES "Error: max_intentos debe ser mayor que 0 y al menos 3 más que la longitud de la palabra\n"
-#define printF(x) write(1, x, strlen(x))
-
+#define BUFFER_SIZE 256
 int create_server_socket(int port) {
     int server_fd;
     struct sockaddr_in address;
     
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd == 0) {
-        printF(ERROR_SOCKET);
+        printString(1,ERROR_SOCKET);
         return -1;
     }
     
@@ -29,13 +28,13 @@ int create_server_socket(int port) {
     address.sin_port = htons(port);
     
     if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
-        printF(ERROR_BIND);
+        printString(1,ERROR_BIND);
         close(server_fd);
         return -1;
     }
     
     if (listen(server_fd, 3) < 0) {
-        printF(ERROR_LISTEN);
+        printString(1,ERROR_LISTEN);
         close(server_fd);
         return -1;
     }
@@ -49,9 +48,47 @@ int accept_client_connection(int server_fd) {
     
     new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen);
     if (new_socket < 0) {
-        printF(ERROR_ACCEPT);
+        printString(1,ERROR_ACCEPT);
         return -1;
     }
     
     return new_socket;
 }
+void* runServer(void * portv){
+    int port = *(int *)portv;
+    int server_fd = create_server_socket(port);
+    if (server_fd < 0) {
+        printString(1,"Error creant el servidor\n");
+        return (void*)1;
+    }
+
+    printString(1,"Maester: Waiting for connections...\n");
+    int new_socket = accept_client_connection(server_fd);
+    if (new_socket < 0) {
+        close(server_fd);
+        return (void*)1;
+    }
+
+
+    printString(1,"Maester: Client connected\n");
+
+    char buffer[BUFFER_SIZE];
+    memset(buffer, '\0', sizeof(buffer));
+
+    ssize_t valread = read(new_socket, buffer, BUFFER_SIZE - 1);
+    if (valread < 0) {
+        printString(1,"Maester: Error reading from socket\n");
+        close(new_socket);
+        close(server_fd);
+        return (void*)1;
+    }
+
+    buffer[valread] = '\0';
+    printString(1,"Maester: Received message: ");
+    printString(1,buffer);
+    printString(1,"\n");
+
+    close(new_socket);
+    close(server_fd);
+    return (void*)0;
+}   
