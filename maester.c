@@ -63,7 +63,9 @@ int runServer(void * portv){
 
 int runClient(int port){
    // int port = *(int *)portv;
-   static char *ip = "127.0.0.1";
+            static char *ip = "127.0.0.1"; 
+
+
         int sock = create_client_socket(ip, port);
         printString(1,"Socket creat\n");
         if (sock < 0) {
@@ -71,7 +73,7 @@ int runClient(int port){
             printString(1,"Error creating the fork\n");
             return 0;
         }
-         printF("Socket creat i connectat!\n");
+         printString(1,"Socket creat i connectat!\n");
         char msg = 'A';
         if (write(sock, &msg, 1) < 0) {
             printF("Error enviant el missatge\n");
