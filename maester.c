@@ -38,7 +38,8 @@ int runServer(void * portv){
         return 1;
     }
 
-    printF("Maester: Client connected\n");
+
+    printString(1,"Maester: Client connected\n");
 
     char buffer[BUFFER_SIZE];
     memset(buffer, '\0', sizeof(buffer));
