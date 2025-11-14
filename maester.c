@@ -15,7 +15,7 @@
 #include "client.h"
 
 
-//crear conf harcoded
+//crear conf harcoded TEST
 ClientConf *crearEnviamentArtificial(Regne *r) {
     Trama *trama = crearTrama(r, 0x01, "TheVale", "Loocoooo");
     ClientConf *clientConf = trobarSeguentSalt(r, trama); //pasar el regne per el routing i trama 
