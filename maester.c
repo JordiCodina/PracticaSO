@@ -15,7 +15,7 @@
 #include "client.h"
 
 
-//crear conf harcoded TEST
+//crear conf harcoded
 ClientConf *crearEnviamentArtificial(Regne *r) {
     Trama *trama = crearTrama(r, 0x01, "TheVale", "Loocoooo");
     ClientConf *clientConf = trobarSeguentSalt(r, trama); //pasar el regne per el routing i trama 
@@ -41,12 +41,7 @@ int main (int argc, char *argv[]){
     //crear thread servidor 
     pthread_t threads[5];
     pthread_create(&threads[0],NULL,runServer,(void *)r);
-    //////////////////////////////////////// 
-    if(strcmp(r->nom,"Dragonstone")==0){//per proves, comença a Dragonstone l'enviament artifical
-        ClientConf *c = crearEnviamentArtificial(r);//per proves
-        pthread_create(&threads[1], NULL, runClient, (void*)c);
-    }
-    ////////////////////////////////////////
+    
     runTerminal(r, fitxerStock);
     pthread_join(threads[0],(void**)NULL);
     return 0;    

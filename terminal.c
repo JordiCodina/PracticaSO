@@ -1,6 +1,18 @@
 
 #include "terminal.h"
 
+//crear conf harcoded
+/*ClientConf *crearEnviamentArtificial(Regne *r) {
+    Trama *trama = crearTrama(r, 0x01, "TheVale", "Loocoooo");
+    ClientConf *clientConf = trobarSeguentSalt(r, trama); //pasar el regne per el routing i trama 
+    printf("Creating artificial ClientConf to %s:%d\n", clientConf->ipDest, clientConf->portDest);
+    if (!clientConf) {
+        printString(1, "Error obtenint ClientConf\n");
+        return NULL;
+    }
+    return clientConf;
+}*/
+
 /*
     Missatge d'entrada
 */
@@ -52,26 +64,30 @@ void runTerminal (Regne *r, char *fitxerStock){
         comandaN = -1;
         if (n_paraules > 0) { 
             if (n_paraules >= 2) {
+                
                 if (strcasecmp (paraules[0],"LIST") == 0) {
                     if (strcasecmp (paraules[1],"REALMS") == 0) {
                         comandaN = 0;
                     } else if (strcasecmp (paraules[1],"PRODUCTS") == 0) {
                         comandaN = 3;
                     }  
+
                 } else if (strcasecmp (paraules[0],"PLEDGE") == 0) {
                     if (strcasecmp (paraules[1],"RESPOND") == 0) {
                         comandaN = 1;
                     } else if (strcasecmp (paraules[1],"STATUS") == 0) {
                         comandaN = 5;
                     } 
+
                 } else if (strcasecmp (paraules[0], "START") == 0 && strcasecmp (paraules[1], "TRADE") == 0) {
                     comandaN = 4;
                     
                 } else if (strcasecmp (paraules[0], "ENVOY") == 0 && strcasecmp (paraules[1], "STATUS") == 0) {
                     comandaN = 6;
                 }
-            } 
-            if (comandaN == -1) {
+
+            } else {
+
                 if (strcasecmp(paraules[0],"PLEDGE") == 0){
                     comandaN = 2;
                 } else if (strcasecmp(paraules[0],"EXIT") == 0){
@@ -106,8 +122,22 @@ void runTerminal (Regne *r, char *fitxerStock){
                     printString(1, "Did you mean to send a pledge? Please review syntax.\n");
                     break;
                 }
-                if(n_paraules>3){
-                    printString(1,"Unknown command\n");
+                if(n_paraules == 3){
+                    printString(1,"Enviar trama\n");
+                    //////////////////////////////////////// 
+                    //ClientConf *c = crearEnviamentArtificial(r);//per proves
+                    pthread_t thread;
+                    pthread_create(&thread, NULL, runClient, (void*)c);
+                    ////////////////////////////////////////
+                    Trama *trama = crearTrama(r, 0x01, paraules[1], "Loocoooo");
+                    ClientConf *clientConf = trobarSeguentSalt(r, trama); //pasar el regne per el routing i trama 
+                    printf("Creating artificial ClientConf to %s:%d\n", clientConf->ipDest, clientConf->portDest);
+                    if (!clientConf) {
+                        printString(1, "Error obtenint ClientConf\n");
+                        return NULL;
+                    }
+                    pthread_join(thread,(void**)NULL);
+
                     break;
                 } 
                 
