@@ -11,6 +11,9 @@
 #include "config.h"
 #include "regne.h"
 #include "producte.h"
+#include "client.h"
+
+
 
 #define COM_LEN 100
 

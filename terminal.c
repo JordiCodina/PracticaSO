@@ -127,7 +127,7 @@ void runTerminal (Regne *r, char *fitxerStock){
                     //////////////////////////////////////// 
                     //ClientConf *c = crearEnviamentArtificial(r);//per proves
                     pthread_t thread;
-                    pthread_create(&thread, NULL, runClient, (void*)c);
+           
                     ////////////////////////////////////////
                     Trama *trama = crearTrama(r, 0x01, paraules[1], "Loocoooo");
                     ClientConf *clientConf = trobarSeguentSalt(r, trama); //pasar el regne per el routing i trama 
@@ -136,6 +136,7 @@ void runTerminal (Regne *r, char *fitxerStock){
                         printString(1, "Error obtenint ClientConf\n");
                         return NULL;
                     }
+                    pthread_create(&thread, NULL, runClient, (void*)clientConf);
                     pthread_join(thread,(void**)NULL);
 
                     break;

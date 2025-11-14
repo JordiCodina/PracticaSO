@@ -7,12 +7,12 @@
 #define FRAME_SIZE 320
 #define DATA_SIZE 275
 typedef struct {
-    uint8_t tipus;               
+    unsigned char tipus;               
     char nom_origen[20];  // ip+port          
     char nom_desti[20];         
-    uint16_t dataLength;          
+    unsigned short dataLength;          
     char data[DATA_SIZE];          
-    uint16_t checksum;             
+    unsigned short checksum;             
 } Trama;
 
 typedef struct {//ho poso tot junt ja que per el thread es mes facil
