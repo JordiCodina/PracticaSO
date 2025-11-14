@@ -77,7 +77,9 @@ void runTerminal (Regne *r, char *fitxerStock){
                         comandaN = 1;
                     } else if (strcasecmp (paraules[1],"STATUS") == 0) {
                         comandaN = 5;
-                    } 
+                    } else {
+                        comandaN = 2;
+                    }
 
                 } else if (strcasecmp (paraules[0], "START") == 0 && strcasecmp (paraules[1], "TRADE") == 0) {
                     comandaN = 4;
@@ -88,9 +90,7 @@ void runTerminal (Regne *r, char *fitxerStock){
 
             } else {
 
-                if (strcasecmp(paraules[0],"PLEDGE") == 0){
-                    comandaN = 2;
-                } else if (strcasecmp(paraules[0],"EXIT") == 0){
+                if (strcasecmp(paraules[0],"EXIT") == 0){
                     comandaN = 7;
                 } else {
                     comandaN = -1;
