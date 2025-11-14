@@ -4,6 +4,7 @@
 #include "client.h"
 
 
+
 #define WON_MESSAGE "¡Has ganado!\n"
 #define LOST_MESSAGE "¡Juego terminado! Has perdido.\n"
 #define INVALID_ADDRESS "Dirección inválida\n"
@@ -14,6 +15,8 @@
 #define USAGE "Uso: ./client <ip> <puerto>\n"
 
 
+
+#define BUFFER_SIZE 256
 int create_client_socket(const char *ip, int port) {
     int client_sock;
     struct sockaddr_in serv_addr;
@@ -26,7 +29,7 @@ int create_client_socket(const char *ip, int port) {
     
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(port);
-    
+
     if (inet_pton(AF_INET, ip, &serv_addr.sin_addr) <= 0) {
         printString(1, INVALID_ADDRESS);
         close(client_sock);
@@ -42,26 +45,60 @@ int create_client_socket(const char *ip, int port) {
     return client_sock;
 }
 
-
-int runClient(int port, char *ip) {
-   // int port = *(int *)portv;
-        int sock = create_client_socket(ip, port);
-        if (sock < 0) {
-    
-            printString(1,"Error creating the socket\n");
-            return 0;
-        }
-         printString(1,"Socket creat i connectat!\n");
-        char msg = 'A';
-        if (write(sock, &msg, 1) < 0) {
-            printString(1,"Error enviant el missatge\n");
-            close(sock);
-            return 1;
-        }
-
-    printString(1,"Missatge enviat correctament!\n");
-
-    close(sock);
-    return 0;
-
+Trama * crearTrama(Regne * r,char tipus,char *nom_desti, char *data) {
+    Trama * t = malloc (sizeof(Trama));
+    t->tipus = tipus;
+    snprintf(t->nom_origen, sizeof(t->nom_origen), "%s:%d", r->ip, r->port);
+    snprintf(t->nom_desti, sizeof(t->nom_desti), "%s", nom_desti);
+    snprintf(t->data, sizeof(t->data), "%s", data);
+    t->dataLength = strlen(t->data);
+    t->checksum = 2; // calcularChecksum(); 
+    return t;
 }
+
+//aquesta funcio busca la seguent ruta (tant si esta directament conectada com si no i llavors s'ha de fer salt) 
+ClientConf *trobarSeguentSalt(Regne *r, Trama *t) {//si troba ip amb * , agafa default
+    int trobat = -1;
+    for (int i = 0; i < r->n_rutes; i++) {
+        if (strcmp(r->rutes[i].nomDest, t->nom_desti) == 0) {
+            trobat = i;
+            break;
+        }
+    }
+    int idx = 0; 
+    if (trobat >= 0 && !teCaracter(r->rutes[trobat].ipDest, '*')) {
+        idx = trobat;
+    }
+
+    ClientConf *conf = malloc(sizeof(ClientConf));
+    if (!conf) {
+        printString(1, "Error allocating memory for ClientConf\n");
+        return NULL;
+    }
+    conf->portDest = r->rutes[idx].portDest;
+    conf->ipDest   = r->rutes[idx].ipDest;   
+    conf->nomDest  = r->rutes[idx].nomDest;  
+    conf->trama    = *t;                    
+    printf("Trama destinada a %s (%s:%d)\n", conf->nomDest, conf->ipDest, conf->portDest);
+    return conf;
+}
+
+
+void *runClient(void *arg)
+{
+    ClientConf *conf = (ClientConf *)arg;
+
+    int client_sock = create_client_socket(conf->ipDest, conf->portDest);
+    if (client_sock < 0) {
+        printString(1, "Error creant el socket\n");
+        
+        free(conf);
+        return NULL;
+    }
+    printString(1, "Enviant trama...\n");
+    write(client_sock, &conf->trama, sizeof(Trama));
+    close(client_sock);
+    free(conf);
+    return NULL;
+}
+

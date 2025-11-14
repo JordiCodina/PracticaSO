@@ -29,7 +29,7 @@ typedef struct {
 
     char *nomDest;
     char *ipDest;
-    char *portDest;
+    int portDest;
     char alianca;
 
 } Ruta;

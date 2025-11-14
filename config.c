@@ -75,11 +75,8 @@ void freeRuta(Ruta r){
     if (r.ipDest != NULL){
         free(r.ipDest);
     }
-    if (r.portDest != NULL){
-        free(r.portDest);
-    }
+   
 }
-
 void freeRegne(Regne *r){
 
     if (r == NULL) return;
@@ -175,11 +172,12 @@ void rutaCpy (Ruta *dest, Ruta *org){
         strcpy(dest->ipDest, org->ipDest);
     }
 
-    if (dest->portDest != NULL) free(dest->portDest);
+    /*if (dest->portDest != NULL) free(dest->portDest);
     if (org->portDest != NULL) {
-        dest->portDest = malloc((strlen(org->portDest) + 1) * sizeof(char));
+        dest->portDest = malloc((strlen(org->portDest) + 1) * sizeof(int));
         strcpy(dest->portDest, org->portDest);
-    }
+    }*/
+    dest->portDest = org->portDest;
 
     dest->alianca = org->alianca;
 }
@@ -243,6 +241,13 @@ Regne *extractInfo (const char *nomFitxer) {
 
     int trash;
     r->nom = readUntil(f, '\n', &trash);
+    if (r->nom != NULL) {
+    size_t len;
+    while ( (len = strlen(r->nom)) > 0 && (r->nom[len - 1] == '\n' || r->nom[len - 1] == '\r' || r->nom[len - 1] == ' ') ) 
+    {
+        r->nom[len - 1] = '\0';
+    }
+    }
 
     eliminarCaracter(r->nom, '&');
     //printString(1, "\nnom: ");
@@ -281,12 +286,23 @@ Regne *extractInfo (const char *nomFitxer) {
 
         ru.nomDest = readUntil(f, ' ', &trash);
         if (ru.nomDest == NULL) break;
-
+       
+        
+      
+        
         eliminarCaracter(ru.nomDest, '&');
 
         ru.ipDest = readUntil(f, ' ', &trash);
-        ru.portDest = readUntil(f, '\n', &trash);
+        char *strPortDest = readUntil(f, '\n', &trash);
+        ru.portDest = (int) atoi(strPortDest);
+        free(strPortDest);
 
+       
+        
+        if (strcmp(ru.nomDest, "---") == 0) {
+            free(ru.nomDest);
+            continue;
+        }
         r->rutes = realloc (r->rutes, (++(r->n_rutes)) * sizeof(Ruta));
         initializeRuta(&(r->rutes[r->n_rutes - 1]));
         rutaCpy ( &(r->rutes[r->n_rutes - 1]), &ru);

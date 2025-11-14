@@ -2,6 +2,7 @@
 
 #include "server.h"
 
+
 #define ERROR_MALLOC "Error: malloc falló\n"
 #define ERROR_REALLOC "Error: realloc falló\n"
 #define WAITING_CONNECTION "Esperando conexiones...\n"
@@ -13,6 +14,11 @@
 #define ERROR_ACCEPT "Error en el accept de la conexión\n"
 #define MAX_TRIES "Error: max_intentos debe ser mayor que 0 y al menos 3 más que la longitud de la palabra\n"
 #define BUFFER_SIZE 256
+ 
+
+
+
+
 int create_server_socket(int port) {
     int server_fd;
     struct sockaddr_in address;
@@ -54,41 +60,67 @@ int accept_client_connection(int server_fd) {
     
     return new_socket;
 }
-void* runServer(void * portv){
-    int port = *(int *)portv;
-    int server_fd = create_server_socket(port);
+    void printTrama(Trama t){
+        printf("─────────────\n");
+        printf("Tipus: 0x%02X\n", t.tipus);
+        printf("Origen(ip+port): %s\n", t.nom_origen);
+        printf("NomDestí: %s\n", t.nom_desti);
+        printf("Longitud dades: %d\n", t.dataLength);
+        printf("Dades: %s\n", t.data);
+        printf("Checksum: %u (OK)\n", t.checksum);
+        printf("─────────────\n");
+    }   
+
+void* runServer(void *aregne) {
+    Regne *r = (Regne *)aregne;
+    int server_fd = create_server_socket(r->port);
     if (server_fd < 0) {
-        printString(1,"Error creant el servidor\n");
+        printString(1, "Error creant el servidor\n");
         return (void*)1;
     }
+    while (1) {
+        printString(1, "Maester: Esperant connexions...\n");
+        int new_socket = accept_client_connection(server_fd);
+        if (new_socket < 0) {
+            printString(1, "Error acceptant connexió\n");
+            continue;
+        }
+        printString(1, "Maester: Client connectat!\n");
+        Trama t;
+        
+        ssize_t servRead = read(new_socket, &t, sizeof(Trama));
+            if (servRead <= 0) {
+                printString(1, "Connexió tancada o error.\n");
+                close(new_socket);
+                break;
+            }
+            if (servRead != sizeof(Trama)) {
+                printString(1, "Trama rebuda incompleta.\n");
+                close(new_socket);
+                continue;
+            }
+           
+            if (strcmp(t.nom_desti, r->nom) == 0) {
+                printString(1, "Trama destinada a arribat correctament al seu desti !!!!!!! \n");
+            }
+            else {
+                printString(1, "Trama NO destinada. Fent Hopping...\n");
+                ClientConf *conf = trobarSeguentSalt(r, &t);
+                if (conf) {
+                    pthread_t th;
+                    pthread_create(&th, NULL, runClient, conf);
+                    pthread_join(th, NULL);
+                    free(conf);
 
-    printString(1,"Maester: Waiting for connections...\n");
-    int new_socket = accept_client_connection(server_fd);
-    if (new_socket < 0) {
-        close(server_fd);
-        return (void*)1;
+                }else {
+                    //cas impossible
+                    printString(1, "No s'ha trobat cap ruta per al destí.\n");
+                }
+            }
+            close(new_socket);
+           
     }
-
-
-    printString(1,"Maester: Client connected\n");
-
-    char buffer[BUFFER_SIZE];
-    memset(buffer, '\0', sizeof(buffer));
-
-    ssize_t valread = read(new_socket, buffer, BUFFER_SIZE - 1);
-    if (valread < 0) {
-        printString(1,"Maester: Error reading from socket\n");
-        close(new_socket);
-        close(server_fd);
-        return (void*)1;
-    }
-
-    buffer[valread] = '\0';
-    printString(1,"Maester: Received message: ");
-    printString(1,buffer);
-    printString(1,"\n");
-
-    close(new_socket);
     close(server_fd);
-    return (void*)0;
-}   
+    printString(1, "Maester: Socket tancat\n");
+    return NULL;
+}
