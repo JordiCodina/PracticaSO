@@ -125,7 +125,8 @@ void initializeRuta (Ruta *r){
     r->nomDest = NULL;
     r->ipDest = NULL;
     r->portDest = 0;
-    r->alianca = 0;
+    r->alianca = 'N'; 
+    r->esConegut = 0;
 }
 
 void initializeRegne (Regne *r){
@@ -135,6 +136,7 @@ void initializeRegne (Regne *r){
     r->n_envoys = 0;
     r->ip = NULL;
     r->port = 0;
+  
     r->n_rutes = 0;
     r->rutes = NULL;
 }
@@ -179,6 +181,7 @@ void rutaCpy (Ruta *dest, Ruta *org){
     }*/
     dest->portDest = org->portDest;
 
+    dest->esConegut = org->esConegut;
     dest->alianca = org->alianca;
 }
 
@@ -266,8 +269,12 @@ Regne *extractInfo (const char *nomFitxer) {
     //printUInt(1, r->n_envoys);
     //printChar(1, '\n');
 
-    r->ip = readUntil(f, '\n', &trash);
-
+    r->ip = readUntil(f, '\n', &trash); 
+   size_t len;
+    while ((len = strlen(r->ip)) > 0 && (r->ip[len - 1] == '\n' || r->ip[len - 1] == '\r' || r->ip[len - 1] == ' ')) {
+    r->ip[len - 1] = '\0';
+    }
+    
     //printString(1, "\nip: ");
     //char *buffer = IPToString(r->ip);
     //printString(1, buffer);
@@ -293,6 +300,10 @@ Regne *extractInfo (const char *nomFitxer) {
         eliminarCaracter(ru.nomDest, '&');
 
         ru.ipDest = readUntil(f, ' ', &trash);
+        ru.esConegut = 1;
+        if(!teCaracter(ru.ipDest,'*')){
+            ru.esConegut = 0;
+        }
         char *strPortDest = readUntil(f, '\n', &trash);
         ru.portDest = (int) atoi(strPortDest);
         free(strPortDest);

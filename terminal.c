@@ -53,7 +53,7 @@ void runTerminal (Regne *r, char *fitxerStock){
         removeFirstEnter ( &comanda, COM_LEN);
         int n_paraules = 0;
         //printString (1, "\ntokenizing...\n");
-        char **paraules = tokenizer(comanda, &n_paraules);
+        char **paraules = tokenizer(comanda, &n_paraules,' ');
         //printString (1, "\nprinting...\n");
         //printTokens(paraules, n_paraules);
         if (n_paraules == 0){
@@ -114,36 +114,19 @@ void runTerminal (Regne *r, char *fitxerStock){
                 if(n_paraules>4){
                     printString(1,"Unknown command\n");
                     break;
-                } 
-                pledgeRespond (r);
+                }   
+                pledgeRespond (r, paraules, n_paraules);
                 break;
             case 2:
-                if (n_paraules < 3){
+                if (n_paraules < 2){
                     printString(1, "Did you mean to send a pledge? Please review syntax.\n");
                     break;
-                }
-                if(n_paraules == 3){
-                    printString(1,"Enviar trama\n");
-                    //////////////////////////////////////// 
-                    //ClientConf *c = crearEnviamentArtificial(r);//per proves
-                    pthread_t thread;
-           
-                    ////////////////////////////////////////
-                    Trama *trama = crearTrama(r, 0x01, paraules[1], "Loocoooo");
-                    ClientConf *clientConf = trobarSeguentSalt(r, trama); //pasar el regne per el routing i trama 
-                    printf("Creating artificial ClientConf to %s:%d\n", clientConf->ipDest, clientConf->portDest);
-                    if (!clientConf) {
-                        printString(1, "Error obtenint ClientConf\n");
-
-                    } else {
-                        pthread_create(&thread, NULL, runClient, (void*)clientConf);
-                        pthread_join(thread,(void**)NULL);
-                    }
-
+                } 
+                if(n_paraules == 2){
+                    //sortir de pledge , ha de ser de n_paraules >2
                     break;
                 } 
-                
-                pledge (r, comanda);
+                pledge (r, paraules);
                 break;
             case 3:
 

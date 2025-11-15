@@ -9,6 +9,8 @@
 #include <stdio.h>
 #include "funcions_basiques.h"
 #include "config.h"
+#include "client.h"
+#include "server.h"
 
 
 
@@ -20,9 +22,10 @@ void listRealms(Regne *r);
 
 // Comanda PLEDGE
 void sendEnvoy(Regne *r, char *casa);
-void pledge (Regne *r, char comanda [100]);
+//void pledge (Regne *r, char comanda [100]);
+void pledge (Regne *r,char **paraules);
 // Comanda PLEDGE RESPOND
-void pledgeRespond (Regne *r);
+void pledgeRespond(Regne *r, char **paraules, int n_paraules);
 // Comanda PLEDGE STATUS 
 void pledgeStatus (Regne *r);
 // Comanda ENVOY STATUS

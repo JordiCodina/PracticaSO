@@ -52,7 +52,7 @@ void removeFirstEnter (char (*str) [], int size);
 
 
 void freeTokens (char **paraules, int n_paraules);
-char **tokenizer (char str[100], int *n_paraules);
+char **tokenizer (char *buffer, int *n_paraules, char sep);
 void printTokens (char **paraules, int n_paraules);
 
 

@@ -63,33 +63,93 @@ void sendEnvoy(Regne *r, char *casa){
     }
 }
 
-void pledge (__attribute__((unused)) Regne *r, __attribute__((unused)) char comanda [100]){
-
+int comprovarRegneExisteix(Regne *r, char * nomRegneRuta) {
+    
     char regneTrobat = 0;
-
     for (int i = 0; i < r->n_rutes; i++){
-
-        int nomRegLen = strlen(r->rutes[i].nomDest);
-
-        if (!substrCmp(comanda, 7, 7 + nomRegLen, r->rutes[i].nomDest)){
-            //sendEnvoy(r, r->rutes[i].nomDest);
-            printString(1, "Command OK\n");
+        //int nomRegLen = strlen(r->rutes[i].nomDest);
+        if (!strcmp(nomRegneRuta,r->rutes[i].nomDest)){
             regneTrobat = 1;
         }
     }
 
     if (!regneTrobat){
-        printString(1, "That Realm cannot be found.\n");
+        return 0; 
     }
+    return 1; 
 }
 
+
+void pledge (Regne *r,char **paraules){
+
+    if (!comprovarRegneExisteix(r, paraules[1])){
+           printString(1, "That Realm cannot be found , remember its case sensitive.\n");
+           return;
+    }
+    for(int i=0;i<r->n_rutes;i++){
+        if(strcmp(r->rutes[i].nomDest,paraules[1])==0){
+            r->rutes[i].alianca='P';
+            //printString(1, "Alliance request sent.\n");
+            break;
+        }
+    }
+    char data[DATA_SIZE];
+    snprintf(data, DATA_SIZE, "%s&%s&%d&%s",r->nom,paraules[2],13545,"MDSUM5");
+    Trama *trama = crearTrama( 0x01, r->ip, r->port, paraules[1], strlen(data), data);
+    enviarTrama(trama, r, 0);
+
+    char *buffer;
+        asprintf(&buffer, "Pledge sent to %s.\n", paraules[1]);//tambe s'ha de posar quin envoy
+        printString(1, buffer);
+        free(buffer);
+    free(trama);
+    //free(clientConf);
+} 
+
+                
 /*
     PLEDGE RESPOND
 */
 
-void pledgeRespond (__attribute__((unused)) Regne *r){
+void pledgeRespond ( Regne *r,char** paraules,int n_paraules){
 
-    printString(1, "Command OK\n");
+    if(paraules==NULL || n_paraules<4){
+        printString(1, "Please specify the Realm and response (accept/reject).\n");
+        return;
+    }
+    int trobat=-1;
+    for(int i=0;i<r->n_rutes;i++){
+        if(strcmp(r->rutes[i].nomDest,paraules[2])==0){
+            trobat=i;
+            break;
+        }
+    }
+    if(trobat<0){
+        printString(1, "That Realm cannot be found.\n");
+        return;
+    }
+    if(r->rutes[trobat].alianca=='S'){
+        printString(1, "You are already allied with this Realm.\n");
+        return;
+    }
+    if(r->rutes[trobat].alianca=='N'){
+        printString(1, "No alliance request.\n");
+        return;
+    }
+
+    if(r->rutes[trobat].alianca=='P'){
+     if(strcasecmp(paraules[3], "reject")==0){
+        respondPledge(0);
+        r->rutes[trobat].alianca='N';
+        return;
+    }
+     if(strcasecmp(paraules[3], "accept")==0){
+        respondPledge(1);
+        r->rutes[trobat].alianca='S';
+        return;
+    }
+    }
+   
 }
 
 /*

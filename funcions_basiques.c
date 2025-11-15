@@ -125,14 +125,14 @@ void printTokens (char **paraules, int n_paraules){
     }
 }
 
-char **tokenizer (char buffer [100], int *n_paraules){
+char **tokenizer (char* buffer, int *n_paraules,char sep){
 
     (*n_paraules) = 0;
     char **paraules = NULL;
     int i = 0;
 
     while (buffer[i] != '\0') {
-        while (buffer[i] == ' '){
+        while (buffer[i] == sep){
             i++;
         }
         if (buffer[i] == '\0') break;
@@ -150,7 +150,7 @@ char **tokenizer (char buffer [100], int *n_paraules){
             paraules[(*n_paraules) - 1] = (char *) realloc (paraules[(*n_paraules) - 1], p_size * sizeof(char));
             paraules[(*n_paraules) - 1][p_size - 1] = buffer[i];
             i++;
-        } while ((buffer[i] != ' ') && (buffer[i] != '\0'));
+        } while ((buffer[i] !=  sep) && (buffer[i] != '\0'));
 
         //printString (1, "TEST1.4 ");
 

@@ -15,34 +15,25 @@
 #include "client.h"
 
 
-//crear conf harcoded
-ClientConf *crearEnviamentArtificial(Regne *r) {
-    Trama *trama = crearTrama(r, 0x01, "TheVale", "Loocoooo");
-    ClientConf *clientConf = trobarSeguentSalt(r, trama); //pasar el regne per el routing i trama 
-    printf("Creating artificial ClientConf to %s:%d\n", clientConf->ipDest, clientConf->portDest);
-    if (!clientConf) {
-        printString(1, "Error obtenint ClientConf\n");
-        return NULL;
-    }
-    return clientConf;
-}
-
 int main (int argc, char *argv[]){
     if (argc != 3) {
         printString(1,"Incorrect arguments : Maester <realm_name> <stock_file>\n");
         return 1;
     }
     Regne *r = extractInfo (argv[1]);
+ 
     char *fitxerStock = argv[2];
-    if (r == NULL) {
+    if (r == NULL) { 
         printString(1,"Error extracting realm info\n");
-        return 0;
+        return 0; 
     }
     //crear thread servidor 
-    pthread_t threads[5];
-    pthread_create(&threads[0],NULL,runServer,(void *)r);
-    
+    pthread_t threadserver;
+    pthread_create(&threadserver,NULL,runServer,(void *)r);
+
+    //iniciar terminal
     runTerminal(r, fitxerStock);
-    pthread_join(threads[0],(void**)NULL);
+
+    pthread_join(threadserver,(void**)NULL);
     return 0;    
 }

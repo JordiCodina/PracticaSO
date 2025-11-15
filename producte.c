@@ -200,7 +200,7 @@ void startTrade(Regne * regneActual, char* comand){
     int quantitat= 0;
 
      int n_paraules = 0;
-    char **paraules = tokenizer(comand, &n_paraules);
+    char **paraules = tokenizer(comand, &n_paraules,' ');
     Producte *productes = NULL;
     char *miss;
     Producte *productesDisponibles = NULL;
@@ -222,7 +222,7 @@ void startTrade(Regne * regneActual, char* comand){
         read(0, comandaTrade, 100);
         removeFirstEnter(&comandaTrade, 100);
 
-        char **paraulesTrade = tokenizer(comandaTrade, &n_paraules);
+        char **paraulesTrade = tokenizer(comandaTrade, &n_paraules,' ');
         
         if (strcasecmp (paraulesTrade[0], "add") == 0){
             comandaTradeN = 0;

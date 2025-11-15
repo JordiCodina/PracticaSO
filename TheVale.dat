@@ -5,4 +5,4 @@ TheVale
 8112
  --- ROUTES ---  
 KingsLanding 172.16.214.21 8111
-Dragonstone 172.16.214.21 8110
+Dragonstone *.*.*.* 0
