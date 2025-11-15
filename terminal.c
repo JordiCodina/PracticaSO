@@ -134,10 +134,11 @@ void runTerminal (Regne *r, char *fitxerStock){
                     printf("Creating artificial ClientConf to %s:%d\n", clientConf->ipDest, clientConf->portDest);
                     if (!clientConf) {
                         printString(1, "Error obtenint ClientConf\n");
-                        return NULL;
+
+                    } else {
+                        pthread_create(&thread, NULL, runClient, (void*)clientConf);
+                        pthread_join(thread,(void**)NULL);
                     }
-                    pthread_create(&thread, NULL, runClient, (void*)clientConf);
-                    pthread_join(thread,(void**)NULL);
 
                     break;
                 } 

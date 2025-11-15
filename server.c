@@ -16,7 +16,7 @@
 #define BUFFER_SIZE 256
  
 
-
+int stop=0;
 
 
 int create_server_socket(int port) {
@@ -52,7 +52,7 @@ int accept_client_connection(int server_fd) {
     struct sockaddr_in address;
     int addrlen = sizeof(address);
     
-    new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen);
+    new_socket = accept(server_fd, (struct sockaddr *) &address, (socklen_t*) &addrlen);
     if (new_socket < 0) {
         printString(1,ERROR_ACCEPT);
         return -1;
@@ -102,6 +102,11 @@ void* runServer(void *aregne) {
            
             if (strcmp(t.nom_desti, r->nom) == 0) {
                 printString(1, "Trama destinada a arribat correctament al seu desti !!!!!!! \n");
+                int t=0;
+                switch (t)
+                 case 0:
+                 break;
+                 //etc...
             }
             else {
                 printString(1, "Trama NO destinada. Fent Hopping...\n");

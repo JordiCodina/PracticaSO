@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <pthread.h>
 #include "funcions_basiques.h"
 #include "config.h"
 #include "regne.h"
