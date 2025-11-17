@@ -176,9 +176,7 @@ void enviarTramaDirecte(Trama *t,int portDest,char *ipDest, char * nomDest){
     conf->ipDest   = ipDest;   
     conf->nomDest  = nomDest;  
     conf->trama    = t;                    
-    pthread_t th;
-    pthread_create(&th, NULL, runClient, conf);
-    pthread_join(th, NULL);
+    conectarClient_EnviarTrama_FerClose(conf);
 }
 
  void enviarTrama(Trama *t, Regne *r, int esHopping) {//esHopping = 1 aixi mostra el print de hopping(aixo nomes usar al server.c)
@@ -190,24 +188,29 @@ void enviarTramaDirecte(Trama *t,int portDest,char *ipDest, char * nomDest){
     if(esHopping) {
         printMissHopping(conf, t->nom_origen, t->nom_desti);
     }
-    pthread_t th;
-    pthread_create(&th, NULL, runClient, conf);
-    pthread_join(th, NULL); 
+    conectarClient_EnviarTrama_FerClose(conf);
 }
 
 
-void *runClient(void *arg)
+int createClientSocket(ClientConf *conf)
 {
-    ClientConf *conf = (ClientConf *)arg;
     int client_sock = create_client_socket(conf->ipDest, conf->portDest);
     if (client_sock < 0) {
-        //printString(1, "Error creant el socket\n");
-        free(conf);
-        return NULL;
+        printString(1, "Error creant el socket client\n");
+        return -1;
+    }
+    return client_sock;
+}
+
+void conectarClient_EnviarTrama_FerClose(ClientConf *conf)
+{
+    int client_sock = createClientSocket(conf);
+    if (conf == NULL) {
+        return;
     }
     write(client_sock, conf->trama, sizeof(Trama));
     close(client_sock);
     free(conf);
-    return NULL;
 }
+
 

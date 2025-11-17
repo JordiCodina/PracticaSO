@@ -105,12 +105,14 @@ void  respondPledge(int res){//1 acceptat 0 denegat
     response=res;
 }
 
+
+
 void* esperarPledgeRespond(void *conf_ptr){
     ClientConf *clientConf = (ClientConf *)conf_ptr;
     printf("Waiting for pledge response...\n");
     time_t inici = time(NULL);          // hora d’inici
     const double timeout = 120.0;
-    while(response == -1){
+    while(response == -1){ 
         sleep(1);//1 segon d'espera
         time_t ara = time(NULL);
         double diff = difftime(ara, inici);
@@ -123,7 +125,10 @@ void* esperarPledgeRespond(void *conf_ptr){
     }
     if(response == 1){
         strncpy(clientConf->trama->data, "ACCEPT", sizeof(clientConf->trama->data)-1);
-    } else {
+    } else if (response == 2) {
+        printString(1, "Pledge response timed out.\n");
+        return NULL;
+    }else{
         strncpy(clientConf->trama->data, "REJECT", sizeof(clientConf->trama->data)-1);
     }
     enviarTramaDirecte(clientConf->trama, clientConf->portDest, clientConf->ipDest, clientConf->nomDest);
@@ -147,18 +152,19 @@ void* esperarPledgeRespond(void *conf_ptr){
             break;
         }
     }
-    char **paraules2 = tokenizer(t->nom_origen, &n_paraules2, ':');
+    char **paraules2 = tokenizer(t->nom_origen, &n_paraules2, ':');//ip:port
     Trama *novatrama = crearTrama(0x03, r->ip, r->port,paraules[0], strlen("ACCEPT/REJECT"), "ACCEPT/REJECT");
     ClientConf *conf = trobarSeguentMaester(r, novatrama);
     conf->trama = novatrama;
     pthread_t pledgerespondthread;
-    pthread_create(&pledgerespondthread, NULL,esperarPledgeRespond, (void *)conf);//aqeust thread crec que no serveix per molt
-    //pthread_join(pledgerespondthread, NULL);
+    pthread_create(&pledgerespondthread, NULL,esperarPledgeRespond, (void *)conf);//aqeust thread crec que no serveix per molt la veritat
+    pthread_join(pledgerespondthread, NULL);
     freeTokens(paraules, n_paraules);
     freeTokens(paraules2, n_paraules2);
 }
 
  void processarTramaPledgeRespond(Trama *t, Regne *r) {
+    
     int n_paraules = 0;
     char **paraules = tokenizer(t->nom_origen, &n_paraules, ':');
     if (n_paraules != 2) {
@@ -167,6 +173,8 @@ void* esperarPledgeRespond(void *conf_ptr){
         return;
     }
 
+   
+     
     if (strcasecmp(t->data, "ACCEPT") == 0) {
         for (int i = 0; i < r->n_rutes; i++) {
             printf("Comparant %s amb %s\n", r->rutes[i].nomDest, t->nom_desti);
@@ -191,7 +199,7 @@ void* esperarPledgeRespond(void *conf_ptr){
             }
         }
     }
-    freeTokens(paraules, n_paraules);
+    //freeTokens(paraules, n_paraules);
 }
 
 /*
@@ -208,6 +216,7 @@ AQUI ES PROCESSEN TOTES LES TRAMES A PARTIR DEL TIPUS
                 char **paraules = tokenizer(t->nom_origen, &n_paraules, ':');
                 enviarTramaACKFitxer(paraules[0], atoi(paraules[1]), t->nom_desti, "OK");
                 freeTokens(paraules, n_paraules);
+              
                 processarTramaPledge(t, r);
                 break;
         
@@ -273,7 +282,7 @@ AQUI ES PROCESSEN TOTES LES TRAMES A PARTIR DEL TIPUS
              
                 break;
             case 0x69:
-                printString(1, "Trama error rebuda:\n");
+                printString(1, "Trama error : NACK  rebuda:\n");
                 
                 break;           
             default:
@@ -325,22 +334,23 @@ void* runServer(void *aregne) {
                 continue;
             }
             
-            if(tocaIgnorarTrama(t->tipus)){//ignorar trames de tipus error,NACK,MD5SUM i tal
+            if(tocaIgnorarTrama(t->tipus)){//ignorar trames de tipus ACK,NACK,MD5SUM i tal , que les processi directament sense passar perl passos seguents,sense fer checksum ni que les reenvii
                 processarTrama(t, r);
                 close (new_socket);
                 free(t);
                 continue;
             }
 
-            if (!comprovarChecksum(t)) {//compovem checksum
+           /* if (!comprovarChecksum(t) && t->checksum>0) {//compovem checksum
                     int n_paraules = 0;
                     char **paraules = tokenizer(t->nom_origen, &n_paraules, ':');
-                    enviarTramaACKFitxer(paraules[0], atoi(paraules[1]), t->nom_desti, "KO");
+                    //enviarTramaACKFitxer(paraules[0], atoi(paraules[1]), t->nom_desti, "KO");
+                    enviarTramaNACK(paraules[0], atoi(paraules[1]), t->nom_desti);
                     freeTokens(paraules, n_paraules);
                     close(new_socket);
                     free(t);
                     continue;
-            }
+            }*/
 
             //aqui haurem de comprovar el MD5SUM 0x32
 
@@ -351,6 +361,8 @@ void* runServer(void *aregne) {
                 enviarTrama(t, r, 1);
             }
             close(new_socket);
+
+            free(t);
     }
     close(server_fd);
     printString(1, "Maester: Socket tancat\n");

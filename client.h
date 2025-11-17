@@ -27,6 +27,7 @@ typedef struct {//ho poso tot junt ja que per el thread es mes facil
     char *ipDest;      // l'adreça IP de destinació del seguent hop
     char *nomDest;     // el nom de destinació del seguent hop
     Trama *trama;        //Trama a enviar
+    int socket;
 } ClientConf;
 
 Trama * crearTrama(char tipus,char *ip,int port,char *nom_desti,unsigned short dataLength,char *data);
@@ -35,7 +36,7 @@ void enviarTrama(Trama *t, Regne *r, int esHopping) ;//aixo es mes per si hi ha 
 void enviarTramaDirecte(Trama *t,int portDest,char *ipDest, char * nomDest);//enviament directe sense hopping si saps ja tot
 
 int create_client_socket(const char *ip, int port);
-void* runClient(void *clientConf);
+void conectarClient_EnviarTrama_FerClose(ClientConf *conf);
 
 void printMissHopping(ClientConf *conf, char *nomOrg, char *nomDest);
 #endif

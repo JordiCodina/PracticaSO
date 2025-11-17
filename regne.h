@@ -32,5 +32,8 @@ void pledgeStatus (Regne *r);
 void envoyStatus (Regne *r);
 
 
+void pledgeHaRespost(char * ip,int port);
+
+
 
 #endif

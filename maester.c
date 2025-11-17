@@ -15,11 +15,12 @@
 #include "client.h"
 
 
+
 int main (int argc, char *argv[]){
     if (argc != 3) {
         printString(1,"Incorrect arguments : Maester <realm_name> <stock_file>\n");
         return 1;
-    }
+    }   
     Regne *r = extractInfo (argv[1]);
  
     char *fitxerStock = argv[2];

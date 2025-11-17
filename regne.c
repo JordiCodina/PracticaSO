@@ -80,6 +80,17 @@ int comprovarRegneExisteix(Regne *r, char * nomRegneRuta) {
 }
 
 
+char* ipPledgeAliance=NULL;
+int portPledgeAliance=0;
+int tenimRespostaPledge=0;
+
+void pledgeHaRespost(char * ip,int port){
+    tenimRespostaPledge=1;
+    ipPledgeAliance=ip;
+    portPledgeAliance=port;
+}
+
+
 void pledge (Regne *r,char **paraules){
 
     if (!comprovarRegneExisteix(r, paraules[1])){
@@ -93,6 +104,9 @@ void pledge (Regne *r,char **paraules){
             break;
         }
     }
+    ipPledgeAliance=NULL;
+    portPledgeAliance=0;
+    tenimRespostaPledge=0;
     char data[DATA_SIZE];
     snprintf(data, DATA_SIZE, "%s&%s&%d&%s",r->nom,paraules[2],13545,"MDSUM5");
     Trama *trama = crearTrama( 0x01, r->ip, r->port, paraules[1], strlen(data), data);
@@ -103,6 +117,25 @@ void pledge (Regne *r,char **paraules){
         printString(1, buffer);
         free(buffer);
     free(trama);
+    while(!tenimRespostaPledge){//esperar resposta
+        sleep(1);
+    }
+    tenimRespostaPledge=0;
+    if (!paraules ||  !paraules[1]) {
+    printString(1, "Alliance response malformed\n");
+    return;
+}
+    for(int i=0;i<r->n_rutes;i++){
+        if(strcmp(r->rutes[i].nomDest,paraules[1])==0){
+            if(r->rutes[i].esConegut==0 && ipPledgeAliance!=NULL && portPledgeAliance!=0){
+                r->rutes[i].ipDest=ipPledgeAliance;
+                r->rutes[i].portDest=portPledgeAliance;
+            }
+            printf(">>> Alliance with %s forged successfully\n", r->rutes[i].nomDest);
+            break;
+        }
+    } 
+
     //free(clientConf);
 } 
 
