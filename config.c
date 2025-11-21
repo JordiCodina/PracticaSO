@@ -126,7 +126,7 @@ void initializeRuta (Ruta *r){
     r->ipDest = NULL;
     r->portDest = 0;
     r->alianca = 'N'; 
-    r->esConegut = 0;
+    r->esDirectamentConectat = 0;
 }
 
 void initializeRegne (Regne *r){
@@ -181,7 +181,7 @@ void rutaCpy (Ruta *dest, Ruta *org){
     }*/
     dest->portDest = org->portDest;
 
-    dest->esConegut = org->esConegut;
+    dest->esDirectamentConectat = org->esDirectamentConectat;
     dest->alianca = org->alianca;
 }
 
@@ -300,9 +300,9 @@ Regne *extractInfo (const char *nomFitxer) {
         eliminarCaracter(ru.nomDest, '&');
 
         ru.ipDest = readUntil(f, ' ', &trash);
-        ru.esConegut = 1;
+        ru.esDirectamentConectat = 1;
         if(!teCaracter(ru.ipDest,'*')){
-            ru.esConegut = 0;
+            ru.esDirectamentConectat = 0;
         }
         char *strPortDest = readUntil(f, '\n', &trash);
         ru.portDest = (int) atoi(strPortDest);
@@ -361,6 +361,13 @@ Producte *extreureProductes(int fProductes, int *n_productes){
     close(fProductes);
     return productes;
 }
+
+
+
+
+
+
+
 
 
 

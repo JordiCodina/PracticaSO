@@ -2,15 +2,16 @@
 #ifndef CLIENT_H
 #define CLIENT_H
 #define _GNU_SOURCE 
-#include <pthread.h>
+
 #include <netdb.h>
-#include <arpa/inet.h>
+#include <arpa/inet.h> 
 #include <sys/socket.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "funcions_basiques.h"
 #include "config.h"
+
 #define FRAME_SIZE 320
 #define DATA_SIZE 275
 typedef struct {
@@ -30,13 +31,30 @@ typedef struct {//ho poso tot junt ja que per el thread es mes facil
     int socket;
 } ClientConf;
 
+typedef struct _ThreadLog {
+
+    char thread_complete;
+    int socket;
+
+} ThreadLog;
+
+
+
+Trama * waitForRead(double timeout,int socket,char* exitflag);
+
+  
+
 Trama * crearTrama(char tipus,char *ip,int port,char *nom_desti,unsigned short dataLength,char *data);
+
 ClientConf *trobarSeguentMaester(Regne *r, Trama *t);
-void enviarTrama(Trama *t, Regne *r, int esHopping) ;//aixo es mes per si hi ha un possible hopping 
-void enviarTramaDirecte(Trama *t,int portDest,char *ipDest, char * nomDest);//enviament directe sense hopping si saps ja tot
+
+void enviarTramaDinamica(Trama *t, Regne *r, int esHopping) ;//aixo es mes per si hi ha un possible hopping 
+int enviarTramaDirecte(Trama *t,int portDest,char *ipDest, char * nomDest);//enviament directe sense hopping si saps ja tot
+int  enviarTramaDirecteSenseTancar(Trama *t,int portDest,char *ipDest, char * nomDest);
 
 int create_client_socket(const char *ip, int port);
-void conectarClient_EnviarTrama_FerClose(ClientConf *conf);
+int conectarClient_EnviarTrama_FerClose(ClientConf *conf);
+
 
 void printMissHopping(ClientConf *conf, char *nomOrg, char *nomDest);
 #endif

@@ -7,6 +7,11 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <signal.h>
+
+
+
+
 
 /*
     funcio per printar un sol caracter
@@ -59,5 +64,8 @@ void printTokens (char **paraules, int n_paraules);
 int comprovarSiNumero(char *str);
 int teCaracter(char *str, char c);
 void eliminarCaracter(char *str, char c);
+
+
+int getSize(int fd);
 
 #endif

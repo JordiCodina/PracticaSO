@@ -206,4 +206,7 @@ void eliminarCaracter(char *str, char c) {
 }
 
 
+int getSize(int fd){
+    return lseek(fd, 0, SEEK_END);
+}
 

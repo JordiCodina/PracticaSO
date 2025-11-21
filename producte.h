@@ -11,7 +11,9 @@
 #include <sys/wait.h>
 #include "funcions_basiques.h"
 #include "config.h"
+#include "client.h"
 
+#define FILENAME_STOCK_SIZE 100
 
 
 

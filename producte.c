@@ -3,6 +3,62 @@
 
 
 
+
+
+
+void listProductsAliat(Regne *r, char *nomAliat) {
+        
+    if (!comprovarRegneExisteix(r, nomAliat)){
+           printString(1, "That Realm cannot be found , remember its case sensitive.\n");
+           return;
+    }
+    int esAliat=0;
+    int indexAliat=-1;
+    for(int i=0;i<r->n_rutes;i++){
+        if(strcmp(r->rutes[i].nomDest,nomAliat)==0){
+            indexAliat=i;//BOOORRRRRRAAAAA!!!!!!
+            if(r->rutes[i].alianca=='S'){
+                esAliat=1;
+                indexAliat=i;
+                printf("Requesting product list from %s...\n", nomAliat);
+                return;
+            }
+            break;
+        }
+    }
+    /*if(!esAliat){
+        printString(1, "You are not allied with this Realm.\n");
+        return;
+    }*/
+    Trama *t = crearTrama(0x11, r->ip, r->port, nomAliat, 0, r->nom);
+    int socket=enviarTramaDirecteSenseTancar(t, r->rutes[indexAliat].portDest, r->rutes[indexAliat].ipDest, nomAliat);
+    if(socket<0){
+        printString(1, "Error sending trama to ally.\n");
+        return;
+    }
+
+    Trama *tramaPeticioLlista=waitForRead(3.0,socket,NULL);//CAAAAAAAAAAAAAAAAAAAANNVVVIIIARR
+    if(tramaPeticioLlista!=NULL){
+        printTrama(*tramaPeticioLlista);
+        if(tramaPeticioLlista->tipus==0x12){
+            printString(1, "Displaying product list:\n");
+            Trama * ackTrama = crearTrama(0x31, NULL, 0, NULL, 2, "OK");
+            write(socket, ackTrama, sizeof(Trama));
+            free(ackTrama);
+            printf("ACK sent to %s\n", nomAliat);
+        }
+    }
+    else{
+        printString(1, "Did not receive product list from ally.\n");
+    }
+
+
+
+
+
+    close(socket);
+}
+
 /*
 LIST PRODUCTS
 */ 

@@ -1,6 +1,4 @@
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
+
 #include "client.h"
 
 
@@ -17,60 +15,6 @@
 
 
 #define BUFFER_SIZE 256
-
-void serializeTrama(Trama *t, unsigned char *buffer) {
-    int offset = 0;
-
-    memcpy(buffer + offset, &t->tipus, 1);
-    offset += 1;
-
-    memcpy(buffer + offset, t->nom_origen, 20);
-    offset += 20;
-
-    memcpy(buffer + offset, t->nom_desti, 20);
-    offset += 20;
-
-    memcpy(buffer + offset, &t->dataLength, 2);
-    offset += 2;
-
-    memcpy(buffer + offset, t->data, 275);
-    offset += 275;
-
-    memcpy(buffer + offset, &t->checksum, 2);
-    offset += 2;
-
-    // opcional: comprova offset == 320
-}
-void deserializeTrama(unsigned char *buffer, Trama *t) {
-    int offset = 0;
-
-    memcpy(&t->tipus, buffer + offset, 1);
-    offset += 1;
-
-    memcpy(t->nom_origen, buffer + offset, 20);
-    offset += 20;
-
-    memcpy(t->nom_desti, buffer + offset, 20);
-    offset += 20;
-
-    memcpy(&t->dataLength, buffer + offset, 2);
-    offset += 2;
-
-    memcpy(t->data, buffer + offset, 275);
-    offset += 275;
-
-    memcpy(&t->checksum, buffer + offset, 2);
-    offset += 2;
-}
-
-
-
-
-
-
-
-
-
 
 int create_client_socket(const char *ip, int port) {
     int client_sock;
@@ -99,6 +43,69 @@ int create_client_socket(const char *ip, int port) {
     
     return client_sock;
 }
+
+void *waitAck( void *arg){
+   // printf("adreçatlThreadArg: %p<-\n", arg);
+   ThreadLog * tl = (ThreadLog * ) arg;
+ //    printf("adreçatlThread: %p<-\n", &tl);
+
+    Trama *response = malloc(sizeof(Trama)); 
+   // printf("Waiting for ack on socket %d\n", tl->socket);
+    read(tl->socket, response, sizeof(Trama)); // Dummy read to avoid compiler warning
+    tl->thread_complete = 1;
+    //return (void *) *response;
+    return response;
+
+}
+Trama * waitForRead(double timeout,int socket,char* exitflag) {
+
+        time_t inici = time(NULL);    
+        int cancelThread=0;
+        ThreadLog tl; 
+        tl.socket = socket;
+        tl.thread_complete = 0;
+
+        char thread_complete =0;
+        pthread_t waitAckThread;
+
+        pthread_create(&waitAckThread, NULL,waitAck, &tl); // Dummy thread to avoid compiler warning
+       
+        while(1){
+            if(exitflag==1){
+                cancelThread=1;
+                printf("Exiting waitForRead due to exit flag.\n");
+                pthread_kill(waitAckThread, SIGKILL);
+                return NULL;
+            }
+            sleep(1);
+            time_t ara = time(NULL);
+            double diff = difftime(ara, inici);
+           // read(socket, response, sizeof(Trama));//esperem ack
+            if (diff >= timeout ) {                      
+                printf("Timeout de llegir.\n");
+                cancelThread =1;
+                pthread_kill(waitAckThread, SIGKILL);
+                break;
+            }
+            if (tl.thread_complete){
+                break;
+            }
+        }
+        Trama * t= NULL;
+        if (cancelThread == 0)
+        {
+            pthread_join(waitAckThread, (void**)&t);            
+            
+        }else{
+            t = NULL;
+        }
+        
+        return t;
+
+    }
+
+
+
 
  void printMissHopping(ClientConf *conf, char *nomOrg, char *nomDest) {
     char *miss;
@@ -143,7 +150,12 @@ Trama * crearTrama(char tipus,char *ip,int port,char *nom_desti,unsigned short d
 //aquesta funcio busca la seguent ruta (tant si esta directament conectada com si no i llavors s'ha de fer salt) 
 ClientConf *trobarSeguentMaester(Regne *r, Trama *t) {//si troba ip amb * , agafa default
     int trobat = -1;
+    int defaultIdx = -1;
     for (int i = 0; i < r->n_rutes; i++) {
+        /*if(strcmp(r->rutes[i].nomDest, "DEFAULT") == 0){
+            defaultIdx = i;
+            printf("Default ")
+        }*/
         if (strcmp(r->rutes[i].nomDest, t->nom_desti) == 0) {
             trobat = i;
             break;
@@ -153,6 +165,13 @@ ClientConf *trobarSeguentMaester(Regne *r, Trama *t) {//si troba ip amb * , agaf
     if (trobat >= 0 && !teCaracter(r->rutes[trobat].ipDest, '*')) {
         idx = trobat;
     }
+   /* if (defaultIdx >= 0) {
+        idx = defaultIdx;
+    }*/
+    /*if(trobat<0 && defaultIdx<0){
+        ClientConf *conf = NULL;
+        return conf;
+    }*/
     ClientConf *conf = malloc(sizeof(ClientConf));
     if (!conf) {
         printString(1, "Error allocating memory for ClientConf\n");
@@ -166,7 +185,7 @@ ClientConf *trobarSeguentMaester(Regne *r, Trama *t) {//si troba ip amb * , agaf
 }
 
 
-void enviarTramaDirecte(Trama *t,int portDest,char *ipDest, char * nomDest){ 
+int  enviarTramaDirecte(Trama *t,int portDest,char *ipDest, char * nomDest){ 
     ClientConf *conf = malloc(sizeof(ClientConf));
     if (!conf) {
         printString(1, "Error allocating memory for ClientConf\n");
@@ -176,10 +195,11 @@ void enviarTramaDirecte(Trama *t,int portDest,char *ipDest, char * nomDest){
     conf->ipDest   = ipDest;   
     conf->nomDest  = nomDest;  
     conf->trama    = t;                    
-    conectarClient_EnviarTrama_FerClose(conf);
+    int socket=conectarClient_EnviarTrama_FerClose(conf);
+    return socket;
 }
 
- void enviarTrama(Trama *t, Regne *r, int esHopping) {//esHopping = 1 aixi mostra el print de hopping(aixo nomes usar al server.c)
+ void enviarTramaDinamica(Trama *t, Regne *r, int esHopping) {//esHopping = 1 aixi mostra el print de hopping(aixo nomes usar al server.c)
     ClientConf *conf = trobarSeguentMaester(r, t);
     if (!conf) {
         printString(1, "No s'ha trobat cap ruta per al destí.\n");
@@ -191,9 +211,34 @@ void enviarTramaDirecte(Trama *t,int portDest,char *ipDest, char * nomDest){
     conectarClient_EnviarTrama_FerClose(conf);
 }
 
+int  enviarTramaDirecteSenseTancar(Trama *t,int portDest,char *ipDest, char * nomDest){ 
+    ClientConf *conf = malloc(sizeof(ClientConf));
+    if (!conf) {
+        printString(1, "Error allocating memory for ClientConf\n");
+        return;
+    }
+    conf->portDest = portDest;
+    conf->ipDest   = ipDest;   
+    conf->nomDest  = nomDest;  
+    conf->trama    = t;                    
+    int socket=conectarClient_EnviarTrama(conf);
+    return socket;
+}
+
+void enviarTramaSocket(Trama *t, int socket) {
+
+    
+    write(socket, t, sizeof(Trama));
+}
+
+void llegirTramaSocket(int socket, Trama *t) {
+    read(socket, t, sizeof(Trama));
+}
+
 
 int createClientSocket(ClientConf *conf)
 {
+    //printf("Creating client socket to %s:%d\n", conf->ipDest, conf->portDest);
     int client_sock = create_client_socket(conf->ipDest, conf->portDest);
     if (client_sock < 0) {
         printString(1, "Error creant el socket client\n");
@@ -201,16 +246,75 @@ int createClientSocket(ClientConf *conf)
     }
     return client_sock;
 }
+/*
+void writeTrama(int socket, Trama *t){
+    write(socket, t, sizeof(Trama));
+}
 
-void conectarClient_EnviarTrama_FerClose(ClientConf *conf)
+void rebreTrama(int socket){
+    Trama *buffer = malloc(sizeof(Trama));
+    if (buffer == NULL) {
+        printString(1, "Error allocating memory for Trama buffer\n");
+        return;
+    }
+    read(socket, buffer, sizeof(Trama));
+    printTrama(*buffer);
+    free(buffer);
+    close(socket);
+}*/
+
+
+
+int conectarClient_EnviarTrama_FerClose(ClientConf *conf)
 {
     int client_sock = createClientSocket(conf);
     if (conf == NULL) {
+        return -1;
+    }
+        printf("Socket after sending trama, client.c: %d\n", client_sock);
+
+    write(client_sock, conf->trama, sizeof(Trama));
+    
+   /* Trama *response = malloc(sizeof(Trama)); 
+    if (response == NULL) {
+        printString(1, "Error allocating memory for Trama response\n");
+        close(client_sock);
         return;
     }
-    write(client_sock, conf->trama, sizeof(Trama));
+    read(client_sock, response, sizeof(Trama));
+    printf("Response received:\n");
+    printTrama(*response);
+    free(response);*/
+
     close(client_sock);
     free(conf);
+    return client_sock;
+
 }
+int conectarClient_EnviarTrama(ClientConf *conf)
+{
+    int client_sock = createClientSocket(conf);
+    if (conf == NULL) {
+        return -1;
+    }
+        printf("Socket after sending trama, client.c: %d\n", client_sock);
+
+    write(client_sock, conf->trama, sizeof(Trama));
+   // printf("Llegint trama de resposta al client.c\n");
+    /*Trama *response = malloc(sizeof(Trama)); 
+    if (response == NULL) {
+        printString(1, "Error allocating memory for Trama response\n");
+        close(client_sock);
+        return;
+    }
+    read(client_sock,response, sizeof(Trama));
+   printTrama(*response);
+   printf("Socket after reading trama, client.c: %d\n", client_sock);
+    free(response);*/
+    free(conf);
+    return client_sock;
+
+}
+
 
 

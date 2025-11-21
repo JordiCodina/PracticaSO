@@ -30,7 +30,7 @@ typedef struct {
     char *nomDest;
     char *ipDest;
     int portDest;
-    int esConegut; // 1 -> sí, 0 -> no // es conegut no es el mateix que alianca , es per el cas de les ip amb *.*.*.* 0 de la configuracio inical.Llavors si es 0 representa  que si fem una aliança = 'S' haurem de substiruir aquest valors de ip i port, si no no cal
+    int esDirectamentConectat; // 1 -> sí, 0 -> no // es conegut no es el mateix que alianca , es per el cas de les ip amb *.*.*.* 0 de la configuracio inical.Llavors si es 0 representa  que si fem una aliança = 'S' haurem de substiruir aquest valors de ip i port, si no no cal
     char alianca; // "S" o "N" // si/no son aliats ,o "P" // s'ha fet una request
 
 } Ruta;
@@ -48,7 +48,12 @@ typedef struct {
     Ruta *rutes;
     int n_rutes;
 
+    int fd_server;
+
 } Regne;
+
+
+
 
 //funcions d'alliberar memòria dinàmica
 

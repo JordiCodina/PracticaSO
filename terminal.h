@@ -18,7 +18,16 @@
 
 #define COM_LEN 100
 
-void runTerminal(Regne *r, char *fitxerStock);
+
+typedef struct _ThreadReadTerminal {
+    char thread_complete;
+    char  comanda[COM_LEN];
+
+} ThreadReadTerminal;
+
+char * waitForExit(char *exitflag);
+
+void runTerminal(Regne *r, char *fitxerStock,char* exitflag);
 
 
 #endif
