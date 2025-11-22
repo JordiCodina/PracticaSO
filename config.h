@@ -86,4 +86,7 @@ Regne *extractInfo (const char *nomFitxer);
 
 Producte *extreureProductes(int fProductes, int *n_productes);
 
+
+int comprovarRegneExisteix(Regne *r, char * nomRegneRuta);
+
 #endif

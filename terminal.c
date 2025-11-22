@@ -40,8 +40,15 @@ void exitMs (Regne *r){
 
 void *waitExit(void *arg) {
     ThreadReadTerminal *tl = (ThreadReadTerminal *) arg;
-    int n = read(0, tl->comanda, COM_LEN - 1); 
+
+    tl->comanda = malloc(COM_LEN);  
+    if (!tl->comanda) {
+        tl->thread_complete = 1;
+        return NULL;
+    }
+    int n = read(0, tl->comanda, COM_LEN - 1);
     if (n < 0) n = 0;
+
     if (n > 0 && tl->comanda[n-1] == '\n') {
         tl->comanda[n-1] = '\0';
     } else {
@@ -52,25 +59,21 @@ void *waitExit(void *arg) {
 }
 
 
-char *waitForExit(char *exitflag) {
+char *waitForExit(int *exitflag) {
 
     ThreadReadTerminal *tl = malloc(sizeof(ThreadReadTerminal));
     tl->thread_complete = 0;
-
     pthread_t waitReadThread;
     pthread_create(&waitReadThread, NULL, waitExit, tl);
-
     while (1) {
-
         if (*exitflag == 1) {
-            //printf("Exiting waitForExit due to exit flag.\n");
-
             pid_t pid = fork();
             if (pid == 0) {
+
                 pthread_kill(waitReadThread, SIGKILL);
-                _exit(0);   
-            } 
-            //printf("Freing tl in waitForExit\n");
+                _exit(0);
+            }
+            free(tl->comanda);   
             free(tl);
             return NULL;
         }
@@ -78,22 +81,50 @@ char *waitForExit(char *exitflag) {
         if (tl->thread_complete == 1) {
             break;
         }
-
         usleep(10000);
     }
-
     pthread_join(waitReadThread, NULL);
-    char *result = strdup(tl->comanda);  
+    char *result = strdup(tl->comanda);
+    free(tl->comanda);  
     free(tl);
-
     return result;
 }
 
+#define BUF_SIZE 256
 
-void runTerminal (Regne *r, char *fitxerStock,char* exitflag){
-    /*Regne *r = extractInfo (argv[1]);
-    char *fitxerStock = argv[2];
-    if (r == NULL) return;*/
+char* llegirComanda(int *exitflag) {
+    if (*exitflag == 1) {
+        return strdup("controlc");
+    }
+    int flags = fcntl(1, F_GETFL, 0);
+    fcntl(1, F_SETFL, flags | O_NONBLOCK);
+    char buf[BUF_SIZE];
+    while (1) {
+        if (*exitflag == 1) {
+            return strdup("controlc");
+        }
+        int n = read(1, buf, BUF_SIZE - 1);
+        if (n < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                usleep(100000);
+                continue;
+            } else {
+                return NULL;
+            }
+        } else if (n == 0) {
+            return NULL;
+        } else {
+            buf[n] = '\0';
+            size_t len = strlen(buf);
+            if (len > 0 && buf[len-1] == '\n') {
+                buf[len-1] = '\0';
+            }
+            return strdup(buf);
+        }
+    }
+}
+
+void runTerminal (Regne *r, char *fitxerStock,int* exitflag){
     
     char *comanda = NULL;
     int comandaN = -1;
@@ -108,15 +139,26 @@ void runTerminal (Regne *r, char *fitxerStock,char* exitflag){
             break;
         }
         printString (1, "$ ");
-                //read (0, comanda, COM_LEN);
-       //if ( (*exitflag) == 0) read (0, comanda, COM_LEN);
-          comanda = waitForExit(exitflag);
+        //comanda = waitForExit(exitflag);
+        comanda = llegirComanda(exitflag);
+
         if (comanda == NULL) {
-            comandaN = 7;   
+            // EOF o error
+        } else if (strcmp(comanda, "controlc") == 0) {
+            // senyal de sortida
+            comandaN = 7;
+            free(comanda);
             break;
         }
+    
+       //sleep(1); //per evitar problemes de concurrencia
+        if (comanda == NULL) {
+            comandaN = 7; 
+            free(comanda);  
+            break;
+        }
+     
        // removeFirstEnter ( &comanda, strlen(comanda) );
-        printf("Comanda llegida: [%s]\n", comanda);
         int n_paraules = 0;
         //printString (1, "\ntokenizing...\n");
         char **paraules = tokenizer(comanda, &n_paraules,' ');
@@ -124,6 +166,7 @@ void runTerminal (Regne *r, char *fitxerStock,char* exitflag){
         //printTokens(paraules, n_paraules);
         if (n_paraules == 0){
             freeTokens(paraules, n_paraules);
+            free(comanda);
             continue;
         }
         //printString (1, "\ndone\n\n");
@@ -190,12 +233,8 @@ void runTerminal (Regne *r, char *fitxerStock,char* exitflag){
                 pledgeRespond (r, paraules, n_paraules,exitflag);
                 break;
             case 2:
-                if (n_paraules < 2){
+                if (n_paraules < 3){
                     printString(1, "Did you mean to send a pledge? Please review syntax.\n");
-                    break;
-                } 
-                if(n_paraules == 2){
-                    //sortir de pledge , ha de ser de n_paraules >2
                     break;
                 } 
                 pledge (r, paraules);
@@ -203,7 +242,7 @@ void runTerminal (Regne *r, char *fitxerStock,char* exitflag){
             case 3:
 
                 if(n_paraules == 3){
-                    listProductsAliat(r, paraules[2]);
+                    listProductsAliat(r, paraules[2],exitflag);
                     break;
                 }
                 else if(n_paraules == 2){
@@ -258,12 +297,17 @@ void runTerminal (Regne *r, char *fitxerStock,char* exitflag){
        
 
         freeTokens(paraules, n_paraules);
+        free(comanda);
+        comanda = NULL;
     }
- 
+
     exitMs (r);
     notificarDesconnexioAliances(r);
-    free(comanda);
-    freeRegne(r);
+    //freeRegne(r);
+    *exitflag=1;
+    //sleep(1);
+    
+
     return;
 
 }

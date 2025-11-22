@@ -15,10 +15,8 @@
 #include "client.h"
 
  
-pthread_t threadserver;
-char exitFlag=0;
 
-
+ int exitFlag=0;
 
 void signalHandler() {
     exitFlag=1;
@@ -36,29 +34,30 @@ int main (int argc, char *argv[]){
     char *fitxerStock = argv[2];
     if (r == NULL) { 
         printString(1,"Error extracting realm info\n");
+
         return 0; 
     }
 
     signal(SIGINT, signalHandler);
     //crear thread servidor 
-   
+     pthread_t threadserver;
     pthread_create(&threadserver,NULL,runServer,(void *)r);
 
     //iniciar terminal
     runTerminal(r, fitxerStock,&exitFlag);
-    //hacer un kill
-    //pthread_kill(threadserver, SIGTERM);
+   
 
-    if(exitFlag){
-        pid_t pid = fork();
-            if (pid == 0) {
-                 pthread_kill(threadserver, SIGKILL);
-                _exit(0);   
-            }
-       
-    }else{
-        pthread_join(threadserver,(void**)NULL);
-    }
+    pthread_join(threadserver, NULL);
+    freeRegne(r);
+    /*pid_t pid = fork();
+        if (pid == 0) {
+            pthread_kill(threadserver, SIGKILL);
+            _exit(0);   
+    }*/
+
   
+  
+
+    
     return 0;     
 }

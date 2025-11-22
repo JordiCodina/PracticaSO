@@ -40,11 +40,13 @@ typedef struct _ThreadLog {
 
 
 
-Trama * waitForRead(double timeout,int socket,char* exitflag);
+Trama * waitForRead(double timeout,int socket,int* exitflag);
 
-  
+  void freeClientConf(ClientConf *conf);
 
 Trama * crearTrama(char tipus,char *ip,int port,char *nom_desti,unsigned short dataLength,char *data);
+unsigned short calcularChecksum(Trama *t);
+
 
 ClientConf *trobarSeguentMaester(Regne *r, Trama *t);
 
@@ -53,7 +55,9 @@ int enviarTramaDirecte(Trama *t,int portDest,char *ipDest, char * nomDest);//env
 int  enviarTramaDirecteSenseTancar(Trama *t,int portDest,char *ipDest, char * nomDest);
 
 int create_client_socket(const char *ip, int port);
+
 int conectarClient_EnviarTrama_FerClose(ClientConf *conf);
+int conectarClient_EnviarTrama(ClientConf *conf);
 
 
 void printMissHopping(ClientConf *conf, char *nomOrg, char *nomDest);

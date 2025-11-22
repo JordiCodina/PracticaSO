@@ -8,6 +8,7 @@
 #include <pthread.h>
 #include <time.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "funcions_basiques.h"
 #include "client.h"

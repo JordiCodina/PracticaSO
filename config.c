@@ -214,10 +214,11 @@ void regneCpy (Regne *dest, Regne* org){
     if (dest->n_rutes != 0){
         for (int i = 0; i < dest->n_rutes; i++){
             if (dest->rutes[i].nomDest != NULL){
-                free(dest->rutes[i].nomDest);
+                freeRuta(dest->rutes[i]);
             }
         }
         free(dest->rutes);
+
     }
 
     dest->n_rutes = org->n_rutes;
@@ -237,7 +238,10 @@ Regne *extractInfo (const char *nomFitxer) {
     //printString(1, "nom del fitxer: ");
     //printString(1, (char *) nomFitxer);
 
-    if (f == -1) return NULL;
+    if (f == -1){
+        printString(1, "Error opening configuration file.\n");
+        return NULL;
+    }
     //printString(1, "\nCreant regne...\n");
     Regne *r = malloc (sizeof(Regne));
     initializeRegne(r);
@@ -286,6 +290,8 @@ Regne *extractInfo (const char *nomFitxer) {
     free(strPort);
     moveReadIdexUntil (f, '\n', &trash);
 
+
+
     while (1){
 
         Ruta ru;
@@ -311,7 +317,8 @@ Regne *extractInfo (const char *nomFitxer) {
        
         
         if (strcmp(ru.nomDest, "---") == 0) {
-            free(ru.nomDest);
+            //free(ru.nomDest);
+            freeRuta(ru);
             continue;
         }
         r->rutes = realloc (r->rutes, (++(r->n_rutes)) * sizeof(Ruta));
@@ -360,6 +367,22 @@ Producte *extreureProductes(int fProductes, int *n_productes){
     }
     close(fProductes);
     return productes;
+}
+
+int comprovarRegneExisteix(Regne *r, char * nomRegneRuta) {
+    
+    char regneTrobat = 0;
+    for (int i = 0; i < r->n_rutes; i++){
+        //int nomRegLen = strlen(r->rutes[i].nomDest);
+        if (!strcmp(nomRegneRuta,r->rutes[i].nomDest)){
+            regneTrobat = 1;
+        }
+    }
+
+    if (!regneTrobat){
+        return 0; 
+    }
+    return 1; 
 }
 
 

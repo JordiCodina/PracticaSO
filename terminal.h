@@ -14,20 +14,17 @@
 #include "producte.h"
 #include "client.h"
 
-
-
-#define COM_LEN 100
-
-
+#define COM_LEN 256
 typedef struct _ThreadReadTerminal {
     char thread_complete;
-    char  comanda[COM_LEN];
-
+    char *comanda;
 } ThreadReadTerminal;
 
-char * waitForExit(char *exitflag);
 
-void runTerminal(Regne *r, char *fitxerStock,char* exitflag);
+
+char * waitForExit(int *exitflag);
+
+void runTerminal(Regne *r, char *fitxerStock,int* exitflag);
 
 
 #endif

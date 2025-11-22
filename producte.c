@@ -6,7 +6,7 @@
 
 
 
-void listProductsAliat(Regne *r, char *nomAliat) {
+void listProductsAliat(Regne *r, char *nomAliat,int* exitFlag) {
         
     if (!comprovarRegneExisteix(r, nomAliat)){
            printString(1, "That Realm cannot be found , remember its case sensitive.\n");
@@ -16,46 +16,45 @@ void listProductsAliat(Regne *r, char *nomAliat) {
     int indexAliat=-1;
     for(int i=0;i<r->n_rutes;i++){
         if(strcmp(r->rutes[i].nomDest,nomAliat)==0){
-            indexAliat=i;//BOOORRRRRRAAAAA!!!!!!
             if(r->rutes[i].alianca=='S'){
                 esAliat=1;
                 indexAliat=i;
-                printf("Requesting product list from %s...\n", nomAliat);
-                return;
+                char *buffer;
+                asprintf(&buffer, "Direct route available (allied).No hops required. %s...\n", nomAliat);
+                printString(1, buffer);
+                free(buffer);
+                break;
             }
             break;
         }
     }
-    /*if(!esAliat){
+    if(!esAliat){
         printString(1, "You are not allied with this Realm.\n");
         return;
-    }*/
+    }
     Trama *t = crearTrama(0x11, r->ip, r->port, nomAliat, 0, r->nom);
+    printf("ruta: %s %d\n", r->rutes[indexAliat].ipDest, r->rutes[indexAliat].portDest);
     int socket=enviarTramaDirecteSenseTancar(t, r->rutes[indexAliat].portDest, r->rutes[indexAliat].ipDest, nomAliat);
     if(socket<0){
         printString(1, "Error sending trama to ally.\n");
         return;
     }
+    printString(1, "Waiting for product list from ally...\n");
 
-    Trama *tramaPeticioLlista=waitForRead(3.0,socket,NULL);//CAAAAAAAAAAAAAAAAAAAANNVVVIIIARR
+    Trama *tramaPeticioLlista=waitForRead(3.0,socket,exitFlag);//CAAAAAAAAAAAAAAAAAAAANNVVVIIIARR
     if(tramaPeticioLlista!=NULL){
-        printTrama(*tramaPeticioLlista);
+       
         if(tramaPeticioLlista->tipus==0x12){
-            printString(1, "Displaying product list:\n");
+            printString(1, "List Products: OK (Pending F3)\n");
             Trama * ackTrama = crearTrama(0x31, NULL, 0, NULL, 2, "OK");
             write(socket, ackTrama, sizeof(Trama));
             free(ackTrama);
-            printf("ACK sent to %s\n", nomAliat);
+            //printf("ACK sent to %s\n", nomAliat);
         }
-    }
-    else{
+    }else{
         printString(1, "Did not receive product list from ally.\n");
     }
-
-
-
-
-
+    free(tramaPeticioLlista);
     close(socket);
 }
 

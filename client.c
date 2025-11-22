@@ -43,6 +43,25 @@ int create_client_socket(const char *ip, int port) {
     
     return client_sock;
 }
+void freeClientConf(ClientConf *conf) {
+    if (conf == NULL) return;
+    if (conf->ipDest != NULL) {
+        free(conf->ipDest);
+        conf->ipDest = NULL;
+    }
+    if (conf->nomDest != NULL) {
+        free(conf->nomDest);
+        conf->nomDest = NULL;
+    }
+    if (conf->trama != NULL) {
+        free(conf->trama);
+        conf->trama = NULL;
+    }
+    if (conf->socket > 0) {
+        conf->socket = -1;
+    }
+    free(conf);
+}
 
 void *waitAck( void *arg){
    // printf("adreçatlThreadArg: %p<-\n", arg);
@@ -57,24 +76,28 @@ void *waitAck( void *arg){
     return response;
 
 }
-Trama * waitForRead(double timeout,int socket,char* exitflag) {
+
+Trama * waitForRead(double timeout,int socket,int* exitflag) {
 
         time_t inici = time(NULL);    
         int cancelThread=0;
         ThreadLog tl; 
         tl.socket = socket;
         tl.thread_complete = 0;
-
-        char thread_complete =0;
         pthread_t waitAckThread;
 
         pthread_create(&waitAckThread, NULL,waitAck, &tl); // Dummy thread to avoid compiler warning
        
         while(1){
-            if(exitflag==1){
+            if(*exitflag==1){
                 cancelThread=1;
                 printf("Exiting waitForRead due to exit flag.\n");
-                pthread_kill(waitAckThread, SIGKILL);
+                 pid_t pid = fork();
+                if (pid == 0) {
+                     pthread_kill(waitAckThread, SIGKILL);
+                    _exit(0);   
+                }
+               
                 return NULL;
             }
             sleep(1);
@@ -126,31 +149,44 @@ unsigned short calcularChecksum(Trama *t) {
     }
     return (unsigned short)(suma % 65536);
 }
-Trama * crearTrama(char tipus,char *ip,int port,char *nom_desti,unsigned short dataLength,char *data) {
+Trama * crearTrama(char tipus, char *ip, int port, char *nom_desti, unsigned short dataLength, char *data) {
+
     Trama * t = malloc (sizeof(Trama));
-    t->tipus = tipus;
-    
-    snprintf(t->nom_origen, sizeof(t->nom_origen), "%s:%d", ip, port);
-    snprintf(t->nom_desti, sizeof(t->nom_desti), "%s", nom_desti);
-    snprintf(t->data, sizeof(t->data), "%s", data);
-    if(ip==NULL && port==0){//aixo es per les trames de errors o comprovacions com NACK o MD5SUM
-       t->nom_origen[0]='\0';
-       t->nom_desti[0]='\0';
+    if (t == NULL) {
+        return NULL;
     }
-     if(tipus==0){
-        t->checksum=0;
-        t->dataLength=0;
+    memset(t, 0, sizeof(Trama));
+    t->tipus = tipus;
+    if (ip != NULL) {
+        snprintf(t->nom_origen, sizeof(t->nom_origen), "%s:%d", ip, port);
+    } else {
+        t->nom_origen[0] = '\0';
+    }
+    if (nom_desti != NULL) {
+        snprintf(t->nom_desti, sizeof(t->nom_desti), "%s", nom_desti);
+    } else {
+        t->nom_desti[0] = '\0';
+    }
+    if (data != NULL) {
+        snprintf(t->data, sizeof(t->data), "%s", data);
+    } else {
+        t->data[0] = '\0';
+    }
+    if (tipus == 0) {
+        t->checksum = 0;
+        t->dataLength = 0;
         return t;
     }
     t->dataLength = dataLength;
     t->checksum = calcularChecksum(t); 
+    
     return t;
 }
 
 //aquesta funcio busca la seguent ruta (tant si esta directament conectada com si no i llavors s'ha de fer salt) 
 ClientConf *trobarSeguentMaester(Regne *r, Trama *t) {//si troba ip amb * , agafa default
     int trobat = -1;
-    int defaultIdx = -1;
+    //int defaultIdx = -1;
     for (int i = 0; i < r->n_rutes; i++) {
         /*if(strcmp(r->rutes[i].nomDest, "DEFAULT") == 0){
             defaultIdx = i;
@@ -173,13 +209,15 @@ ClientConf *trobarSeguentMaester(Regne *r, Trama *t) {//si troba ip amb * , agaf
         return conf;
     }*/
     ClientConf *conf = malloc(sizeof(ClientConf));
+    memset(conf, 0, sizeof(ClientConf));
     if (!conf) {
         printString(1, "Error allocating memory for ClientConf\n");
         return NULL;
     }
-    conf->portDest = r->rutes[idx].portDest;
-    conf->ipDest   = r->rutes[idx].ipDest;   
-    conf->nomDest  = r->rutes[idx].nomDest;  
+     memset(conf, 0, sizeof(ClientConf));
+    conf->ipDest   = strdup(r->rutes[idx].ipDest); 
+    conf->nomDest  = strdup(r->rutes[idx].nomDest);
+    conf->portDest = r->rutes[idx].portDest; 
     conf->trama = t;                    
     return conf;
 }
@@ -189,13 +227,16 @@ int  enviarTramaDirecte(Trama *t,int portDest,char *ipDest, char * nomDest){
     ClientConf *conf = malloc(sizeof(ClientConf));
     if (!conf) {
         printString(1, "Error allocating memory for ClientConf\n");
-        return;
+        free(t);
+        return -1;
     }
+    memset(conf, 0, sizeof(ClientConf));
     conf->portDest = portDest;
-    conf->ipDest   = ipDest;   
-    conf->nomDest  = nomDest;  
+    conf->ipDest   = strdup(ipDest);   
+    conf->nomDest  = strdup(nomDest);  
     conf->trama    = t;                    
     int socket=conectarClient_EnviarTrama_FerClose(conf);
+    freeClientConf(conf);
     return socket;
 }
 
@@ -203,31 +244,44 @@ int  enviarTramaDirecte(Trama *t,int portDest,char *ipDest, char * nomDest){
     ClientConf *conf = trobarSeguentMaester(r, t);
     if (!conf) {
         printString(1, "No s'ha trobat cap ruta per al destí.\n");
+        free(t);
         return;
     }
+   
+    
     if(esHopping) {
         printMissHopping(conf, t->nom_origen, t->nom_desti);
     }
+    
     conectarClient_EnviarTrama_FerClose(conf);
+     
+      freeClientConf(conf);
 }
 
 int  enviarTramaDirecteSenseTancar(Trama *t,int portDest,char *ipDest, char * nomDest){ 
     ClientConf *conf = malloc(sizeof(ClientConf));
     if (!conf) {
         printString(1, "Error allocating memory for ClientConf\n");
-        return;
+        free(t);
+        return -1;
     }
+     memset(conf, 0, sizeof(ClientConf));
+
     conf->portDest = portDest;
-    conf->ipDest   = ipDest;   
-    conf->nomDest  = nomDest;  
+    conf->ipDest   = strdup(ipDest);   
+    conf->nomDest  = strdup(nomDest);  
     conf->trama    = t;                    
     int socket=conectarClient_EnviarTrama(conf);
+      freeClientConf(conf);
     return socket;
 }
 
 void enviarTramaSocket(Trama *t, int socket) {
 
-    
+    if(socket < 0 || t == NULL) {
+        printString(1, "Socket no vàlid per enviar la trama.\n");
+        return;
+    }
     write(socket, t, sizeof(Trama));
 }
 
@@ -238,7 +292,11 @@ void llegirTramaSocket(int socket, Trama *t) {
 
 int createClientSocket(ClientConf *conf)
 {
-    //printf("Creating client socket to %s:%d\n", conf->ipDest, conf->portDest);
+
+    if (conf == NULL) {
+        printString(1, "ClientConf és NULL\n");
+        return -1;
+    }
     int client_sock = create_client_socket(conf->ipDest, conf->portDest);
     if (client_sock < 0) {
         printString(1, "Error creant el socket client\n");
@@ -267,12 +325,14 @@ void rebreTrama(int socket){
 
 int conectarClient_EnviarTrama_FerClose(ClientConf *conf)
 {
-    int client_sock = createClientSocket(conf);
+  
     if (conf == NULL) {
         return -1;
     }
-        printf("Socket after sending trama, client.c: %d\n", client_sock);
-
+    int client_sock = createClientSocket(conf);
+    if (client_sock < 0) {
+        return -1;  
+    }
     write(client_sock, conf->trama, sizeof(Trama));
     
    /* Trama *response = malloc(sizeof(Trama)); 
@@ -287,7 +347,6 @@ int conectarClient_EnviarTrama_FerClose(ClientConf *conf)
     free(response);*/
 
     close(client_sock);
-    free(conf);
     return client_sock;
 
 }
@@ -295,10 +354,8 @@ int conectarClient_EnviarTrama(ClientConf *conf)
 {
     int client_sock = createClientSocket(conf);
     if (conf == NULL) {
-        return -1;
+        return -1;  
     }
-        printf("Socket after sending trama, client.c: %d\n", client_sock);
-
     write(client_sock, conf->trama, sizeof(Trama));
    // printf("Llegint trama de resposta al client.c\n");
     /*Trama *response = malloc(sizeof(Trama)); 
@@ -311,7 +368,7 @@ int conectarClient_EnviarTrama(ClientConf *conf)
    printTrama(*response);
    printf("Socket after reading trama, client.c: %d\n", client_sock);
     free(response);*/
-    free(conf);
+  
     return client_sock;
 
 }

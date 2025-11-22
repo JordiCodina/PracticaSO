@@ -49,7 +49,10 @@ char* readUntil (int fileDescriptor, char stop, int *size){
         hasRead = read (fileDescriptor, &newChar, 1);
     }
 
-    if ((*size) == 0) return NULL;
+    if ((*size) == 0) {
+        if (string != NULL) free(string);
+        return NULL;
+    }
 
     string = realloc (string, ((*size) + 1) * sizeof(char));
     string[(*size)] = '\0';
@@ -66,6 +69,7 @@ void moveReadIdexUntil (int fileDescriptor, char stop, int *size){
 
     char *string = readUntil (fileDescriptor, stop, size);
     if (string != NULL) free(string);
+
 }
 
 /*
