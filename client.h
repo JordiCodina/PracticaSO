@@ -12,6 +12,18 @@
 #include "funcions_basiques.h"
 #include "config.h"
 
+#define WON_MESSAGE "¡Has ganado!\n"
+#define LOST_MESSAGE "¡Juego terminado! Has perdido.\n"
+#define INVALID_ADDRESS "Dirección inválida\n"
+#define CONNECTION_FAILED "Can't connect to realm\n"
+#define SOCKET_CREATION_FAILED "Falló la creación del socket\n"
+#define ASK_LETTER "Introduce una letra: "
+#define INVALID_INPUT "Entrada inválida. Solo se puede introducir una letra\n"
+#define USAGE "Uso: ./client <ip> <puerto>\n"
+
+
+
+
 #define FRAME_SIZE 320
 #define DATA_SIZE 275
 typedef struct {
@@ -40,7 +52,7 @@ typedef struct _ThreadLog {
 
 
 
-Trama * waitForRead(double timeout,int socket,int* exitflag);
+//Trama * waitForRead(double timeout,int socket,int* exitflag);
 
   void freeClientConf(ClientConf *conf);
 
@@ -53,6 +65,7 @@ ClientConf *trobarSeguentMaester(Regne *r, Trama *t);
 void enviarTramaDinamica(Trama *t, Regne *r, int esHopping) ;//aixo es mes per si hi ha un possible hopping 
 int enviarTramaDirecte(Trama *t,int portDest,char *ipDest, char * nomDest);//enviament directe sense hopping si saps ja tot
 int  enviarTramaDirecteSenseTancar(Trama *t,int portDest,char *ipDest, char * nomDest);
+void enviarTramaSocket(Trama *t, int socket) ;
 
 int create_client_socket(const char *ip, int port);
 

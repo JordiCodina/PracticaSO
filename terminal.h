@@ -22,9 +22,10 @@ typedef struct _ThreadReadTerminal {
 
 
 
+
 char * waitForExit(int *exitflag);
 
-void runTerminal(Regne *r, char *fitxerStock,int* exitflag);
+void runTerminal(Regne *r, char *fitxerStock);
 
 
 #endif

@@ -6,7 +6,7 @@
 
 
 
-void listProductsAliat(Regne *r, char *nomAliat,int* exitFlag) {
+void listProductsAliat(Regne *r, char *nomAliat/*,int* exitFlag*/) {
         
     if (!comprovarRegneExisteix(r, nomAliat)){
            printString(1, "That Realm cannot be found , remember its case sensitive.\n");
@@ -29,20 +29,21 @@ void listProductsAliat(Regne *r, char *nomAliat,int* exitFlag) {
         }
     }
     if(!esAliat){
-        printString(1, "You are not allied with this Realm.\n");
+        printString(1, "You are not allied with this Realm or its inactive.\n");
         return;
     }
     Trama *t = crearTrama(0x11, r->ip, r->port, nomAliat, 0, r->nom);
-    printf("ruta: %s %d\n", r->rutes[indexAliat].ipDest, r->rutes[indexAliat].portDest);
     int socket=enviarTramaDirecteSenseTancar(t, r->rutes[indexAliat].portDest, r->rutes[indexAliat].ipDest, nomAliat);
     if(socket<0){
-        printString(1, "Error sending trama to ally.\n");
+        printString(1, "Error sending trama to ally. Probably is disconnected.\n");
         return;
     }
     printString(1, "Waiting for product list from ally...\n");
 
-    Trama *tramaPeticioLlista=waitForRead(3.0,socket,exitFlag);//CAAAAAAAAAAAAAAAAAAAANNVVVIIIARR
-    if(tramaPeticioLlista!=NULL){
+    //Trama *tramaPeticioLlista=waitForRead(2.0,socket,exitFlag);
+    Trama *tramaPeticioLlista = malloc(sizeof(Trama));
+    read(socket, tramaPeticioLlista, sizeof(Trama));
+    if(tramaPeticioLlista!=NULL || tramaPeticioLlista->tipus==0x69){
        
         if(tramaPeticioLlista->tipus==0x12){
             printString(1, "List Products: OK (Pending F3)\n");

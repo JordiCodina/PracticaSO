@@ -69,12 +69,15 @@ void freeEnvoy(Envoy e){
 }
 
 void freeRuta(Ruta r){
+    /*
     if (r.nomDest != NULL){
         free(r.nomDest);
     }
     if (r.ipDest != NULL){
         free(r.ipDest);
-    }
+    }*/
+   if (r.nomDest) free(r.nomDest);
+    if (r.ipDest)  free(r.ipDest);
    
 }
 void freeRegne(Regne *r){
@@ -106,7 +109,10 @@ void freeRegne(Regne *r){
         }
         free(r->envoys);
     }
-
+    //free(r->exit);
+    if (r->n_fils != 0){
+        free(r->fils);
+    }  
     free(r);
 }
 
@@ -139,6 +145,14 @@ void initializeRegne (Regne *r){
   
     r->n_rutes = 0;
     r->rutes = NULL;
+    r->fd_server = -1;
+    r->exit = 0;
+    r->fils = NULL;
+    r->n_fils = 0;
+
+
+    r->envoyTemporalIsBusy = 0;//borrar per fase 3
+
 }
 
 /*
@@ -173,12 +187,6 @@ void rutaCpy (Ruta *dest, Ruta *org){
         dest->ipDest = malloc((strlen(org->ipDest) + 1) * sizeof(char));
         strcpy(dest->ipDest, org->ipDest);
     }
-
-    /*if (dest->portDest != NULL) free(dest->portDest);
-    if (org->portDest != NULL) {
-        dest->portDest = malloc((strlen(org->portDest) + 1) * sizeof(int));
-        strcpy(dest->portDest, org->portDest);
-    }*/
     dest->portDest = org->portDest;
 
     dest->esDirectamentConectat = org->esDirectamentConectat;
@@ -230,6 +238,9 @@ void regneCpy (Regne *dest, Regne* org){
             rutaCpy ( &(dest->rutes[i]), &(org->rutes[i]));
         }
     }
+
+    dest->fd_server = org->fd_server;
+    dest->exit = org->exit;
 }
 
 Regne *extractInfo (const char *nomFitxer) {

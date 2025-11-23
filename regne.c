@@ -61,7 +61,7 @@ void sendEnvoy(Regne *r, char *casa){//no per aquesta fase
     }
 }
 
-
+/*
 extern int exitFlag;
 
 void *runTimeoutRuta(void *arg) {
@@ -88,12 +88,29 @@ void *runTimeoutRuta(void *arg) {
     }
 
     return NULL;
-}
-void pledge (Regne *r,char **paraules){
+}*/
 
+void freeThreadPledge(Thread_pledge *tp) {
+    if (!tp) return;
+    if (tp->paraules) {
+        for (int i = 0; i < tp->n_paraules; i++) {
+            free(tp->paraules[i]);
+        }
+        free(tp->paraules);
+    }
+    free(tp);
+}
+
+void* pledge (void *arg){
+    Thread_pledge *tp = (Thread_pledge *) arg;
+    Regne *r = tp->r;
+    char **paraules = tp->paraules;
+
+   
     if (!comprovarRegneExisteix(r, paraules[1])){
            printString(1, "That Realm cannot be found , remember its case sensitive.\n");
-           return;
+            freeThreadPledge(tp);
+           return NULL;
     }
     char * filename=malloc(FILENAME_SIGIL_SIZE*sizeof(char));
     snprintf(filename, FILENAME_SIGIL_SIZE, "segells/%s",paraules[2]);
@@ -101,8 +118,8 @@ void pledge (Regne *r,char **paraules){
     if(fd==-1){
         printString(1, "Error opening  file\n");
         free(filename);
-        
-        return;
+        freeThreadPledge(tp);
+       return NULL;
     }
     int indexRuta=-1;
     for(int i=0;i<r->n_rutes;i++){
@@ -110,12 +127,15 @@ void pledge (Regne *r,char **paraules){
         if(strcmp(r->rutes[i].nomDest,paraules[1])==0){
             if( r->rutes[i].alianca=='S'){
                 printString(1, "You are already allied with this Realm.\n");
-                return;
+                 freeThreadPledge(tp);
+                    free(filename);
+                return NULL;
             }
             if( r->rutes[i].alianca=='P'){
                 printString(1, "You have already sent an alliance request to this Realm.\n");
-
-                return;
+                 freeThreadPledge(tp);
+                    free(filename);
+                return NULL;
             }
             r->rutes[i].alianca='P';
             indexRuta=i;
@@ -140,24 +160,35 @@ void pledge (Regne *r,char **paraules){
         printString(1, buffer);
         free(buffer);
 
-    pthread_t th;
-    pthread_create(&th, NULL, runTimeoutRuta, (void *)&r->rutes[indexRuta]);
-    pthread_join(th, NULL);
-    /*time_t inici = time(NULL);         
+    //pthread_t th;
+    //pthread_create(&th, NULL, runTimeoutRuta, (void *)&r->rutes[indexRuta]);
+    //pthread_join(th, NULL);
+
+    r->envoyTemporalIsBusy = 1;
+    time_t inici = time(NULL);         
     const double timeout = 120.0;
     while(1){
         sleep(1);
         time_t ara = time(NULL);
         double diff = difftime(ara, inici);
         if (diff >= timeout) {                      
-           // printf("Timeout de 2 minuts.\n");
+            char *buffer;
+            asprintf(&buffer, "Pledge to %s timed out.\n", r->rutes[indexRuta].nomDest);
+            printString(1, buffer);
+            free(buffer);
             r->rutes[indexRuta].alianca='T';//T de timeout
+            break;
+        }
+        if (r->exit && *(r->exit)) {
             break;
         }
         if(r->rutes[indexRuta].alianca=='S' || r->rutes[indexRuta].alianca=='N'){
             break;
         }
-    }*/
+    }
+    freeThreadPledge(tp);
+    r->envoyTemporalIsBusy = 0; 
+    return NULL;
 } 
 
 
@@ -168,7 +199,7 @@ void pledge (Regne *r,char **paraules){
 */
 
 
-void pledgeRespond ( Regne *r,char** paraules,int n_paraules,int * exitf){
+void pledgeRespond ( Regne *r,char** paraules,int n_paraules){
 
     if(paraules==NULL || n_paraules<4){
         printString(1, "Please specify the Realm and response (accept/reject).\n");
@@ -183,6 +214,7 @@ void pledgeRespond ( Regne *r,char** paraules,int n_paraules,int * exitf){
     }
     if(trobat<0){
         printString(1, "That Realm cannot be found.\n");
+
         return;
     }
     if(r->rutes[trobat].alianca=='S'){
@@ -196,28 +228,20 @@ void pledgeRespond ( Regne *r,char** paraules,int n_paraules,int * exitf){
 
     if(r->rutes[trobat].alianca=='P'){
      if(strcasecmp(paraules[3], "reject")==0){
-        //respondPledge(0);
         enviarTramaDirecte(crearTrama(0x03, r->ip, r->port, r->nom, strlen("REJECT"), "REJECT"), r->rutes[trobat].portDest, r->rutes[trobat].ipDest, paraules[2]);
         r->rutes[trobat].alianca='N';
         return;
-    }
-     if(strcasecmp(paraules[3], "accept")==0){
-       // printf(">>> Alliance with %s forged successfully\n", paraules[2]);
-        //printf("portDest: %d, ipDest: %s, nomDest: %s\n", r->rutes[trobat].portDest, r->rutes[trobat].ipDest, paraules[2]);
-        //printf("ruta: %s %d\n", r->rutes[trobat].ipDest, r->rutes[trobat].portDest);
+    } else if(strcasecmp(paraules[3], "accept")==0){
         int socket=enviarTramaDirecteSenseTancar(crearTrama(0x03, r->ip, r->port, r->nom, strlen("ACCEPT"), "ACCEPT"), r->rutes[trobat].portDest, r->rutes[trobat].ipDest, paraules[2]);
         if(socket<0){
             return;
         }
-        Trama * t = waitForRead(3.0,socket,exitf);
-       // printf("adreçatl: %p<-\n", &tl);
-       
-       
+        //Trama * t = waitForRead(2.0,socket,r->exit);
+        Trama * t = malloc(sizeof(Trama));
+        read(socket, t, sizeof(Trama));
         if(t!=NULL){
         //si es ack o nack
-        //printf("Ack received from %s: %s\n", paraules[2], t->data);
         if(t->tipus==0x31){//ack
-            //printf(">>> Alliance with %s forged successfully\n", paraules[2]);
             char *miss;
             asprintf(&miss, "Alliance with %s established.\n", paraules[2]);
             printString(1, miss);
@@ -233,11 +257,17 @@ void pledgeRespond ( Regne *r,char** paraules,int n_paraules,int * exitf){
         }
         
         }else{
-             printf("Did not receive ack from %s\n", paraules[2]);
+             char *miss3;
+            asprintf(&miss3, "Did not receive ack from %s\n", paraules[2]);
+            printString(1, miss3);
+            free(miss3);
         }
         close(socket);
         free(t);
      
+        return;
+    }else{
+        printString(1, "Please respond with accept or reject.\n");
         return;
     }
     }else{
@@ -255,18 +285,15 @@ DESCONEXIÓ DE MAESTER
 void notificarDesconnexioAliances(Regne *r){
 
     for(int i=0;i<r->n_rutes;i++){
-        if(r->rutes[i].alianca=='S'){ //descomentar!!!!!!!!!!!!!!!!!!!!!
+        if(r->rutes[i].alianca=='S'){ 
             Trama *trama = crearTrama( 0x27, r->ip, r->port, r->rutes[i].nomDest, 10, "DISCONNECT");
             enviarTramaDirecte(trama, r->rutes[i].portDest, r->rutes[i].ipDest, r->rutes[i].nomDest);//traam s'allibera aqui
-            printf("Notified %s of disconnection.\n", r->rutes[i].nomDest);
+            char *miss;
+            asprintf(&miss, "Notified %s of disconnection.\n", r->rutes[i].nomDest);
+            printString(1, miss);
+            free(miss);
             
         }
-       /* if(strcmp(r->rutes[i].nomDest, "b") == 0){ //descomentar!!!!!!!!!!!!!!!!!!!!!
-            Trama *trama = crearTrama( 0x27, r->ip, r->port, "b", 10, "DISCONNECT");
-            enviarTramaDirecte(trama, 8111, "172.16.214.21", "a");//traam s'allibera aqui
-            printf("Notified %s of disconnection.\n", r->rutes[i].nomDest);
-            
-        }*/
     }
 }
 

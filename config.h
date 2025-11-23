@@ -35,6 +35,13 @@ typedef struct {
 
 } Ruta;
 
+
+typedef struct {
+
+    pthread_t thread_id;
+    int comanda;
+
+} Fils;
 typedef struct {
 
     char *nom;
@@ -49,8 +56,17 @@ typedef struct {
     int n_rutes;
 
     int fd_server;
+    int *exit;
+
+    Fils *fils;//aixo potser s'hauria de posar a envoys pero de moment tenim nomes 1
+    int n_fils;
+
+    int envoyTemporalIsBusy;//si 1 esta ocupat , si 0 esta lliure //provisional per fase 2
 
 } Regne;
+
+
+
 
 
 

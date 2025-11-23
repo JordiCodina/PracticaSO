@@ -37,15 +37,19 @@ int main (int argc, char *argv[]){
 
         return 0; 
     }
-
+    r->exit = &exitFlag;
     signal(SIGINT, signalHandler);
     //crear thread servidor 
      pthread_t threadserver;
     pthread_create(&threadserver,NULL,runServer,(void *)r);
 
     //iniciar terminal
-    runTerminal(r, fitxerStock,&exitFlag);
+    runTerminal(r, fitxerStock);
    
+    //esperar que tots els threads acabin
+    for(int i=0;i<r->n_fils;i++){
+        pthread_join(r->fils[i].thread_id,NULL);
+    }
 
     pthread_join(threadserver, NULL);
     freeRegne(r);

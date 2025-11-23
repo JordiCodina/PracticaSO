@@ -1,19 +1,6 @@
 
 #include "client.h"
 
-
-
-#define WON_MESSAGE "¡Has ganado!\n"
-#define LOST_MESSAGE "¡Juego terminado! Has perdido.\n"
-#define INVALID_ADDRESS "Dirección inválida\n"
-#define CONNECTION_FAILED "Conexión fallida \n"
-#define SOCKET_CREATION_FAILED "Falló la creación del socket\n"
-#define ASK_LETTER "Introduce una letra: "
-#define INVALID_INPUT "Entrada inválida. Solo se puede introducir una letra\n"
-#define USAGE "Uso: ./client <ip> <puerto>\n"
-
-
-
 #define BUFFER_SIZE 256
 
 int create_client_socket(const char *ip, int port) {
@@ -77,7 +64,7 @@ void *waitAck( void *arg){
 
 }
 
-Trama * waitForRead(double timeout,int socket,int* exitflag) {
+Trama * waitForRead(double timeout,int socket,int* exitflag) {//no s'utlitza aquest funcio
 
         time_t inici = time(NULL);    
         int cancelThread=0;
@@ -91,7 +78,6 @@ Trama * waitForRead(double timeout,int socket,int* exitflag) {
         while(1){
             if(*exitflag==1){
                 cancelThread=1;
-                printf("Exiting waitForRead due to exit flag.\n");
                  pid_t pid = fork();
                 if (pid == 0) {
                      pthread_kill(waitAckThread, SIGKILL);
@@ -105,7 +91,6 @@ Trama * waitForRead(double timeout,int socket,int* exitflag) {
             double diff = difftime(ara, inici);
            // read(socket, response, sizeof(Trama));//esperem ack
             if (diff >= timeout ) {                      
-                printf("Timeout de llegir.\n");
                 cancelThread =1;
                 pthread_kill(waitAckThread, SIGKILL);
                 break;
@@ -299,7 +284,7 @@ int createClientSocket(ClientConf *conf)
     }
     int client_sock = create_client_socket(conf->ipDest, conf->portDest);
     if (client_sock < 0) {
-        printString(1, "Error creant el socket client\n");
+       // printString(1, "Error creant el socket client\n");
         return -1;
     }
     return client_sock;

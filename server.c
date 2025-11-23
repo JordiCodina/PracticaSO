@@ -2,9 +2,6 @@
 
 #include "server.h"
 
-
-extern int exitFlag;
-
 int create_server_socket(int port) {
     int server_fd;
     struct sockaddr_in address;
@@ -47,48 +44,6 @@ int accept_client_connection(int server_fd) {
     return new_socket;
 }
 
-void printTrama(Trama t){//aixo es per debugar pero es borrara
-        printf("─────────────\n");
-        printf("Tipus: 0x%02X\n", t.tipus);
-        printf("Origen(ip+port): %s\n", t.nom_origen);
-        printf("NomDestí: %s\n", t.nom_desti);
-        printf("Longitud dades: %d\n", t.dataLength);
-        printf("Dades: %s\n", t.data);
-        printf("Checksum: %u (OK)\n", t.checksum);
-        printf("─────────────\n");
-} 
-
-
-/*
-
-ENVAIMENT TRAMES ESPECÍFIQUES
-
-*/
-
-void enviarTramaACKFitxer(char * ip, int port, char *nomDest,char * status ,int client_sock ){//status es OK o KO
-    printf("Enviant ACK de fitxer a %s:%d per %s amb estat %s\n", ip, port, nomDest, status);
-    Trama * tramaNACK=crearTrama(0x31, NULL, 0, NULL,2, status);
-    //sleep(4);//sleep 4 segons
-    
-    //enviarTramaDirecte(tramaNACK, port, ip, nomDest);
-   // free(tramaNACK);
-    write(client_sock, tramaNACK, sizeof(Trama));
-    free(tramaNACK);
-
-}
-void enviarTramaNACK(char * ip, int port, char *nomDest ){
-    Trama * tramaNACK=crearTrama(0x69, NULL, 0, NULL,0, NULL);
-    enviarTramaDirecte(tramaNACK, port, ip, nomDest);//el free de trama es fa aqui
-    //free(tramaNACK);
-}
-/*void enviarTramaMD5SUM(Regne *r, unsigned short llargariaDades){
-
-    Trama * tramaMD5SUM=crearTrama(0x32, NULL, 0, NULL, llargariaDades, "CHECK_OK");
-    enviarTramaDirecte(tramaMD5SUM, r->port, r->ip, "MDSUM5");
-    free(tramaMD5SUM);
-}*/
-
-
 /*
 
 RESPONDRE A PETCIONS DEL CLIENT COM A SERVIDOR
@@ -108,6 +63,9 @@ RESPONDRE A PETCIONS DEL CLIENT COM A SERVIDOR
     for (int i = 0; i < r->n_rutes; i++) {
         if (strcmp(r->rutes[i].nomDest, paraules[0]) == 0) {
             r->rutes[i].alianca = 'P';
+            if (r->rutes[i].ipDest) {
+                free(r->rutes[i].ipDest);
+            }
             r->rutes[i].ipDest =strdup(paraules2[0]);
             r->rutes[i].portDest = atoi(paraules2[1]);
             trobat=1;
@@ -146,9 +104,11 @@ RESPONDRE A PETCIONS DEL CLIENT COM A SERVIDOR
                 r->rutes[i].alianca = 'S';
                 //if (r->rutes[i].esDirectamentConectat == 0) {
                     r->rutes[i].portDest = atoi(paraules[1]);
-                    r->rutes[i].ipDest   = strdup(paraules[0]);                   
+                    if (r->rutes[i].ipDest) {
+                        free(r->rutes[i].ipDest);
+                    }
+                    r->rutes[i].ipDest = strdup(paraules[0]);                  
                 //}
-                printf("xrfwfw forged with %s at %s:%d\n",r->rutes[i].nomDest, r->rutes[i].ipDest, r->rutes[i].portDest);
                 char *buffer;
                 asprintf(&buffer, ">>> Alliance with %s forged successfully!\n", r->rutes[i].nomDest);
                 printString(1, buffer);
@@ -191,18 +151,31 @@ void processarTramaLlistarProductes(Trama *t, Regne *r,int client_sock) {
 
        printString(1, "LIST PRODUCTS request from ");
         printString(1, t->nom_origen);
-        printString(1, "\n. Sending product list.\n");
-   
+        for(int i=0;i<r->n_rutes;i++){
+            if(strcmp(r->rutes[i].nomDest,t->data)==0){
+                if(r->rutes[i].alianca!='S'){
+                        Trama * authtrama = crearTrama(0x25, r->ip, r->port, t->data, 5, "AUTH");
+                        enviarTramaSocket(authtrama, client_sock);
+                        free(authtrama);
+                        printString(1, "You are not allied with this Realm or it is inactive. Sending AUTH NACK.\n");
+                    return;
+                }
+                break;
+            }
+        }
+        printString(1, ".\nSending product list...\n");
+
        char * filename=malloc(FILENAME_STOCK_SIZE*sizeof(char));
-        //snprintf(filename, FILENAME_STOCK_SIZE, "%s.db",r->nom);
         snprintf(filename, FILENAME_STOCK_SIZE, "stock%s.db",r->nom);
         int fd=open(filename, O_RDONLY);
-        if(fd==-1){
+        if(fd==-1){//cas impossible ja que esta harcodeat
             printString(1, "Error opening  file\n");
+            Trama * nackTrama=crearTrama(0x69, NULL, 0, NULL, 0, NULL);
+            enviarTramaSocket(nackTrama, client_sock);
+            free(nackTrama);
             free(filename);
             return;
         }
-      
         int size=getSize(fd);
         char data[DATA_SIZE];
         //DATA: <FileName>&<FileSize>&<MD5SUM>
@@ -243,7 +216,6 @@ AQUI ES PROCESSEN TOTES LES TRAMES A PARTIR DEL TIPUS
                 
                 break;
             case 0x11: 
-                printString(1, "Trama llistar productes rebuda:\n");
                 processarTramaLlistarProductes(t, r, client_sock);
                 
                 break;
@@ -273,7 +245,7 @@ AQUI ES PROCESSEN TOTES LES TRAMES A PARTIR DEL TIPUS
                 char **paraules3 = tokenizer(t->nom_origen, &n_paraules3, ':');
                 int port= atoi(paraules3[1]);
                 for (int i = 0; i < r->n_rutes; i++) {
-                        if(r->rutes[i].portDest==port) {
+                        if(r->rutes[i].portDest==port && strcmp(r->rutes[i].nomDest,"DEFAULT")!=0){
                         if(r->rutes[i].alianca == 'S'){
                             r->rutes[i].alianca = 'I';
                             printString(1, "Alliance has been disconnected.\n");
@@ -281,12 +253,6 @@ AQUI ES PROCESSEN TOTES LES TRAMES A PARTIR DEL TIPUS
                        
                         break;
                     }
-                }
-       
-                if(strcmp(r->nom,"b")==0){
-                    Trama *t56 = crearTrama(0x56, NULL, 0, NULL, 0, NULL);
-                    enviarTramaDirecte(t56, 8110, paraules3[0],"a");
-                    printf("Sent 0x56 trama to a\n");
                 }
 
                 freeTokens(paraules3, n_paraules3);
@@ -359,7 +325,7 @@ void* runServer(void *aregne) {
     //no puc fer un kill del thread amb fork perque quedaria memoria dinamica i sockets oberts
     int flags = fcntl(r->fd_server, F_GETFL, 0);
     fcntl(r->fd_server, F_SETFL, flags | O_NONBLOCK);
-    while (!exitFlag) {
+    while (*r->exit==0) {
 
         int new_socket = accept_client_connection(r->fd_server);
         if (new_socket < 0) {
@@ -417,7 +383,7 @@ void* runServer(void *aregne) {
             
     }
     close(r->fd_server);
-    printString(1, "Maester: Socket tancat\n");
+    //printString(1, "Maester: Socket tancat\n");
     return NULL;
 }
 

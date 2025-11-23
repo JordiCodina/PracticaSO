@@ -124,34 +124,39 @@ char* llegirComanda(int *exitflag) {
     }
 }
 
-void runTerminal (Regne *r, char *fitxerStock,int* exitflag){
+
+void afegirThread(Regne *r, int comandaN) {
+    if (r->fils == NULL) {
+        r->fils = malloc(sizeof(Fils));
+        r->n_fils = 1;
+    } else {
+        r->fils = realloc(r->fils, (r->n_fils + 1) * sizeof(Fils));
+        r->n_fils++;
+    }
+    r->fils[r->n_fils - 1].comanda = comandaN;
+}
+
+void runTerminal (Regne *r, char *fitxerStock){
+    
     
     char *comanda = NULL;
     int comandaN = -1;
 
     iniciMs (r);
-
-
     while (comandaN != 7){ 
-      
-        if(*exitflag == 1){
+        if(*(r->exit) == 1){
             comandaN = 7;
             break;
         }
         printString (1, "$ ");
         //comanda = waitForExit(exitflag);
-        comanda = llegirComanda(exitflag);
-
+        comanda = llegirComanda(r->exit);
         if (comanda == NULL) {
-            // EOF o error
         } else if (strcmp(comanda, "controlc") == 0) {
-            // senyal de sortida
             comandaN = 7;
             free(comanda);
             break;
         }
-    
-       //sleep(1); //per evitar problemes de concurrencia
         if (comanda == NULL) {
             comandaN = 7; 
             free(comanda);  
@@ -207,7 +212,7 @@ void runTerminal (Regne *r, char *fitxerStock,int* exitflag){
             }
         }
         
-        if(*exitflag == 1){
+        if(*(r->exit) == 1){
             comandaN = 7;
             break;
         }
@@ -230,19 +235,35 @@ void runTerminal (Regne *r, char *fitxerStock,int* exitflag){
                     printString(1,"Unknown command\n");
                     break;
                 }   
-                pledgeRespond (r, paraules, n_paraules,exitflag);
+                pledgeRespond (r, paraules, n_paraules);
                 break;
             case 2:
                 if (n_paraules < 3){
                     printString(1, "Did you mean to send a pledge? Please review syntax.\n");
                     break;
                 } 
-                pledge (r, paraules);
+
+                if(r->envoyTemporalIsBusy == 0){
+                    Thread_pledge *tp = malloc(sizeof(Thread_pledge));
+                    tp->r = r;
+                    tp->n_paraules = n_paraules;
+                    tp->paraules = malloc(n_paraules * sizeof(char *));
+                    for (int i = 0; i < n_paraules; i++) {
+                        tp->paraules[i] = strdup(paraules[i]);
+                    }
+                    
+                    afegirThread(r, comandaN);
+                    pthread_create(&r->fils[r->n_fils - 1].thread_id, NULL, pledge, (void *)tp);
+                // pledge (r, paraules);
+                }else{
+                    printString(1, "Envoy is busy.Try again later\n");
+                }
+                
                 break;
             case 3:
 
                 if(n_paraules == 3){
-                    listProductsAliat(r, paraules[2],exitflag);
+                    listProductsAliat(r, paraules[2]/*,r->exit*/);
                     break;
                 }
                 else if(n_paraules == 2){
@@ -300,12 +321,12 @@ void runTerminal (Regne *r, char *fitxerStock,int* exitflag){
         free(comanda);
         comanda = NULL;
     }
+    
 
     exitMs (r);
     notificarDesconnexioAliances(r);
     //freeRegne(r);
-    *exitflag=1;
-    //sleep(1);
+    *(r->exit)=1;
     
 
     return;
