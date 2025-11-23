@@ -59,7 +59,7 @@ void *waitExit(void *arg) {
 }
 
 
-char *waitForExit(int *exitflag) {
+char *waitForExit(int *exitflag) {//no s'utlitza aquesta funcio pero la deixem per si de cas
 
     ThreadReadTerminal *tl = malloc(sizeof(ThreadReadTerminal));
     tl->thread_complete = 0;
@@ -90,47 +90,15 @@ char *waitForExit(int *exitflag) {
     return result;
 }
 
-#define BUF_SIZE 256
 
-char* llegirComanda(int *exitflag) {
-    if (*exitflag == 1) {
-        return strdup("controlc");
-    }
-    int flags = fcntl(1, F_GETFL, 0);
-    fcntl(1, F_SETFL, flags | O_NONBLOCK);
-    char buf[BUF_SIZE];
-    while (1) {
-        if (*exitflag == 1) {
-            return strdup("controlc");
-        }
-        int n = read(1, buf, BUF_SIZE - 1);
-        if (n < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                usleep(100000);
-                continue;
-            } else {
-                return NULL;
-            }
-        } else if (n == 0) {
-            return NULL;
-        } else {
-            buf[n] = '\0';
-            size_t len = strlen(buf);
-            if (len > 0 && buf[len-1] == '\n') {
-                buf[len-1] = '\0';
-            }
-            return strdup(buf);
-        }
-    }
-}
 
 
 void afegirThread(Regne *r, int comandaN) {
     if (r->fils == NULL) {
-        r->fils = malloc(sizeof(Fils));
+        r->fils = malloc(sizeof(Fil));
         r->n_fils = 1;
     } else {
-        r->fils = realloc(r->fils, (r->n_fils + 1) * sizeof(Fils));
+        r->fils = realloc(r->fils, (r->n_fils + 1) * sizeof(Fil));
         r->n_fils++;
     }
     r->fils[r->n_fils - 1].comanda = comandaN;

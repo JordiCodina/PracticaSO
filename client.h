@@ -43,7 +43,7 @@ typedef struct {//ho poso tot junt ja que per el thread es mes facil
     int socket;
 } ClientConf;
 
-typedef struct _ThreadLog {
+typedef struct _ThreadLog {//no sutiltiza pero ho deixem temporalment per si de cas
 
     char thread_complete;
     int socket;

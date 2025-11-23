@@ -12,8 +12,6 @@ int comprovarRutaRegneValid(char *str,int n_rutes , Ruta *rutes){
     }
     return esValid;
 }
-
-
 /*
     LIST REALMS
 */
@@ -117,6 +115,7 @@ void* pledge (void *arg){
     int fd=open(filename, O_RDONLY);
     if(fd==-1){
         printString(1, "Error opening  file\n");
+        
         free(filename);
         freeThreadPledge(tp);
        return NULL;
@@ -127,12 +126,14 @@ void* pledge (void *arg){
         if(strcmp(r->rutes[i].nomDest,paraules[1])==0){
             if( r->rutes[i].alianca=='S'){
                 printString(1, "You are already allied with this Realm.\n");
+                close(fd);
                  freeThreadPledge(tp);
                     free(filename);
                 return NULL;
             }
             if( r->rutes[i].alianca=='P'){
                 printString(1, "You have already sent an alliance request to this Realm.\n");
+                close(fd);
                  freeThreadPledge(tp);
                     free(filename);
                 return NULL;

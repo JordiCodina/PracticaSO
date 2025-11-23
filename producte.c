@@ -114,7 +114,7 @@ void sendCompra(char* nomRegneDest, char *nomMaester, Producte *productes, int n
         printString(1, "Cannot send trade: missing information\n");
         return;
     }
-    char *missDir;
+    char *missDir; 
     asprintf(&missDir, ".%s", rutaArxius); 
     pid_t pid = fork();
     if (pid == 0) {
@@ -246,6 +246,7 @@ void removeProducteTrade(Producte **productes, int *numProductes, char *nomProdu
     }
 }
 
+
 void startTrade(Regne * regneActual, char* comand){
     
     int areTrading = 1;
@@ -274,12 +275,36 @@ void startTrade(Regne * regneActual, char* comand){
     do{
         printString(1,"Trade> ");
         comandaTradeN=-1;
-        char comandaTrade[100];
-        read(0, comandaTrade, 100);
-        removeFirstEnter(&comandaTrade, 100);
+        char *comandaTrade=NULL;
+        n_paraules = 0;
+        //read(0, comandaTrade, 100);
+        comandaTrade=llegirComanda(regneActual->exit);
+
+        if (strcmp(comandaTrade, "controlc") == 0) {
+            free(comandaTrade);
+            free(nomRegneDest);
+            free(productes);
+            free(productesDisponibles);
+            return;
+        }
+        if (comandaTrade == NULL) {
+            free(comandaTrade);
+            free(nomRegneDest);
+            free(productes);
+            free(productesDisponibles);
+            
+            return;
+        }
+        //removeFirstEnter(&comandaTrade, 100);
 
         char **paraulesTrade = tokenizer(comandaTrade, &n_paraules,' ');
         
+        if(n_paraules==0){
+            freeTokens(paraulesTrade, n_paraules);
+            free(comandaTrade);
+
+            continue;
+        }
         if (strcasecmp (paraulesTrade[0], "add") == 0){
             comandaTradeN = 0;
         }
@@ -299,16 +324,22 @@ void startTrade(Regne * regneActual, char* comand){
 
         switch (comandaTradeN){
             case 0: //add
-                if (n_paraules != 3) {
+                if (n_paraules < 3) {
                     printString(1, "add <product_name> <quantity>\n");
                     break;
                 }
-                strcpy(nomProducte, paraulesTrade[1]);
-                if (!comprovarSiNumero(paraulesTrade[2])) {
+                nomProducte[0] = '\0';
+                for (int i = 1; i < n_paraules - 1; i++) {
+                    strcat(nomProducte, paraulesTrade[i]);
+                    if (i < n_paraules - 2) strcat(nomProducte, " ");
+                }
+
+                if (!comprovarSiNumero(paraulesTrade[n_paraules - 1])) {
                     printString(1, "You have to put a positive number.\n");
                     break;
                 }
-                quantitat = atoi(paraulesTrade[2]);
+                quantitat = atoi(paraulesTrade[n_paraules - 1]);
+
                 if (!comprovarExistexProducte(nomProducte, productesDisponibles, n_productesDisponibles)) {
                     printString(1, "Product not found\n");
                     break;
@@ -318,12 +349,16 @@ void startTrade(Regne * regneActual, char* comand){
 
             case 1: //remove
                 
-                if (n_paraules != 3) {
+                 if (n_paraules < 3) {
                     printString(1, "remove <product_name> <quantity>\n");
                     break;
                 }
-                strcpy(nomProducte, paraulesTrade[1]);
-                quantitat = atoi(paraulesTrade[2]);
+                nomProducte[0] = '\0';
+                for (int i = 1; i < n_paraules - 1; i++) {
+                    strcat(nomProducte, paraulesTrade[i]);
+                    if (i < n_paraules - 2) strcat(nomProducte, " ");
+                }
+                quantitat = atoi(paraulesTrade[n_paraules - 1]);
                 removeProducteTrade(&productes, &numProductes, nomProducte, quantitat);
                 break;
 
@@ -340,6 +375,7 @@ void startTrade(Regne * regneActual, char* comand){
 
 
         freeTokens(paraulesTrade, n_paraules);
+        free(comandaTrade);
 
     } while(areTrading);
     free(nomRegneDest);

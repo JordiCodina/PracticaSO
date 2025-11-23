@@ -8,9 +8,10 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <signal.h>
+#include <errno.h>
 
 
-
+#define BUF_SIZE 256
 
 
 /*
@@ -67,5 +68,7 @@ void eliminarCaracter(char *str, char c);
 
 
 int getSize(int fd);
+
+char* llegirComanda(int *exitflag) ;
 
 #endif

@@ -50,7 +50,7 @@ void freeClientConf(ClientConf *conf) {
     free(conf);
 }
 
-void *waitAck( void *arg){
+void *waitAck( void *arg){//no s'utlitza aquesta funcio pero la deixem per si de cas
    // printf("adreçatlThreadArg: %p<-\n", arg);
    ThreadLog * tl = (ThreadLog * ) arg;
  //    printf("adreçatlThread: %p<-\n", &tl);
@@ -64,7 +64,7 @@ void *waitAck( void *arg){
 
 }
 
-Trama * waitForRead(double timeout,int socket,int* exitflag) {//no s'utlitza aquest funcio
+Trama * waitForRead(double timeout,int socket,int* exitflag) {//no s'utlitza aquest funcio pero la deixem per si de cas
 
         time_t inici = time(NULL);    
         int cancelThread=0;
@@ -73,7 +73,7 @@ Trama * waitForRead(double timeout,int socket,int* exitflag) {//no s'utlitza aqu
         tl.thread_complete = 0;
         pthread_t waitAckThread;
 
-        pthread_create(&waitAckThread, NULL,waitAck, &tl); // Dummy thread to avoid compiler warning
+        pthread_create(&waitAckThread, NULL,waitAck, &tl); 
        
         while(1){
             if(*exitflag==1){
