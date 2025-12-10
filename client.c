@@ -152,10 +152,15 @@ Trama * crearTrama(char tipus, char *ip, int port, char *nom_desti, unsigned sho
     } else {
         t->nom_desti[0] = '\0';
     }
-    if (data != NULL) {
+    /*if (data != NULL) {
         snprintf(t->data, sizeof(t->data), "%s", data);
     } else {
         t->data[0] = '\0';
+    }*/
+    if (data != NULL) {
+        size_t copySize = dataLength;
+        if (copySize > sizeof(t->data)) copySize = sizeof(t->data); 
+        memcpy(t->data, data, copySize);
     }
     if (tipus == 0) {
         t->checksum = 0;
@@ -220,17 +225,17 @@ int  enviarTramaDirecte(Trama *t,int portDest,char *ipDest, char * nomDest){
     conf->ipDest   = strdup(ipDest);   
     conf->nomDest  = strdup(nomDest);  
     conf->trama    = t;                    
-    int socket=conectarClient_EnviarTrama_FerClose(conf);
+    int status=conectarClient_EnviarTrama_FerClose(conf);
     freeClientConf(conf);
-    return socket;
+    return status;
 }
 
- void enviarTramaDinamica(Trama *t, Regne *r, int esHopping) {//esHopping = 1 aixi mostra el print de hopping(aixo nomes usar al server.c)
+ int enviarTramaDinamica(Trama *t, Regne *r, int esHopping) {//esHopping = 1 aixi mostra el print de hopping(aixo nomes usar al server.c)
     ClientConf *conf = trobarSeguentMaester(r, t);
     if (!conf) {
         printString(1, "No s'ha trobat cap ruta per al destí.\n");
         free(t);
-        return;
+        return -1;
     }
    
     
@@ -238,9 +243,10 @@ int  enviarTramaDirecte(Trama *t,int portDest,char *ipDest, char * nomDest){
         printMissHopping(conf, t->nom_origen, t->nom_desti);
     }
     
-    conectarClient_EnviarTrama_FerClose(conf);
+    int status = conectarClient_EnviarTrama_FerClose(conf);
      
-      freeClientConf(conf);
+    freeClientConf(conf);
+    return status;
 }
 
 int  enviarTramaDirecteSenseTancar(Trama *t,int portDest,char *ipDest, char * nomDest){ 
@@ -257,7 +263,8 @@ int  enviarTramaDirecteSenseTancar(Trama *t,int portDest,char *ipDest, char * no
     conf->nomDest  = strdup(nomDest);  
     conf->trama    = t;                    
     int socket=conectarClient_EnviarTrama(conf);
-      freeClientConf(conf);
+
+    freeClientConf(conf);
     return socket;
 }
 
@@ -311,6 +318,7 @@ void rebreTrama(int socket){
 int conectarClient_EnviarTrama_FerClose(ClientConf *conf)
 {
   
+
     if (conf == NULL) {
         return -1;
     }
@@ -319,7 +327,6 @@ int conectarClient_EnviarTrama_FerClose(ClientConf *conf)
         return -1;  
     }
     write(client_sock, conf->trama, sizeof(Trama));
-    
    /* Trama *response = malloc(sizeof(Trama)); 
     if (response == NULL) {
         printString(1, "Error allocating memory for Trama response\n");
@@ -337,8 +344,10 @@ int conectarClient_EnviarTrama_FerClose(ClientConf *conf)
 }
 int conectarClient_EnviarTrama(ClientConf *conf)
 {
+
     int client_sock = createClientSocket(conf);
     if (conf == NULL) {
+        printString(1, "ClientConf és NULL\n");
         return -1;  
     }
     write(client_sock, conf->trama, sizeof(Trama));

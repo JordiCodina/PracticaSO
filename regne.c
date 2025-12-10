@@ -33,7 +33,7 @@ void listRealms (Regne *r){
     PLEDGE
 */
 
-void sendEnvoy(Regne *r, char *casa){//no per aquesta fase
+/*void sendEnvoy(Regne *r, char *casa){//no per aquesta fase
 
     char envoy_sent = 0;
 
@@ -57,7 +57,7 @@ void sendEnvoy(Regne *r, char *casa){//no per aquesta fase
     if (!envoy_sent){
         printString(1, "All envoys are on a mission.\n");
     }
-}
+}*/
 
 /*
 extern int exitFlag;
@@ -138,34 +138,125 @@ void* pledge (void *arg){
                     free(filename);
                 return NULL;
             }
+            if( r->rutes[i].alianca=='O'){
+                printString(1, "You have a pending pledge from that Maester.\n");
+                close(fd);
+                freeThreadPledge(tp);
+                free(filename);
+                return NULL;
+            }
+            
             r->rutes[i].alianca='P';
             indexRuta=i;
             //printString(1, "Alliance request sent.\n");
             break;
         }
-    }
+     }
+        resetEnvoy(&r->envoys[tp->indexEnvoy]);
+        setStatusEnvoy(&r->envoys[tp->indexEnvoy], "pledge");
+        char *pathPNG;
+        asprintf(&pathPNG, "%s/%s_sigil.png", r->rutes[indexRuta].nomDest, r->nom);
+        int fdsigil = open(pathPNG, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        if (fdsigil < 0) {
+            free(pathPNG);
+            close(socket);
+            return;
+        }
+
+        close(fdsigil); // tancar ara, després obriràs per escriure trames
+        free(pathPNG);
+
     char data[DATA_SIZE];
-       
     int size=getSize(fd);
-    snprintf(data, DATA_SIZE, "%s&%s&%d&%s",r->nom,paraules[2],size,"MDSUM5");
-     
+    char *md5 = calcularMD5SUM(filename);
+    printf("MD5: %s\n", md5);
+    if (!md5) {
+        printString(1, "Error calculant MD5\n");
+        //freeTokens(paraules, n_paraules);
+        close(fd);
+        free(filename);
+        freeThreadPledge(tp);
+        return NULL;
+    }
+    snprintf(data, DATA_SIZE, "%s&%s&%d&%s",r->nom,paraules[2],size, md5);
     Trama *trama = crearTrama( 0x01, r->ip, r->port, paraules[1], strlen(data), data);
-   
     enviarTramaDinamica(trama, r, 0);//trama s'allibera aqui
-    
     close(fd);
     free(filename); 
-    
+    free(md5);
     char *buffer;
         asprintf(&buffer, "Pledge sent to %s. Envoy 1 is on its way.\n", paraules[1]);//tambe s'ha de posar quin envoy
         printString(1, buffer);
         free(buffer);
 
-    //pthread_t th;
-    //pthread_create(&th, NULL, runTimeoutRuta, (void *)&r->rutes[indexRuta]);
-    //pthread_join(th, NULL);
-
     r->envoyTemporalIsBusy = 1;
+
+    int startPos=0;
+        char * filenameSigil=malloc(FILENAME_SIGIL_SIZE*sizeof(char));
+        snprintf(filenameSigil, FILENAME_SIGIL_SIZE, "segells/%s.png",r->nom);
+        int fdSigil=open(filenameSigil, O_RDONLY);
+        if(fdSigil==-1){
+            printString(1, "Error opening  file to read sigil\n");
+            free(filenameSigil);
+            freeThreadPledge(tp);
+            return NULL;
+        }
+
+
+        
+         char *sigilData;
+        printString(1, "Sending sigil ...\n");
+        
+        
+        key_t semKey = generarClauIPC(r->nom, r->rutes[indexRuta].nomDest, 1);
+        semaphore semPledge;
+        SEM_constructor_with_name(&semPledge, semKey);
+        SEM_init(&semPledge, 1);
+
+
+        while(startPos<=size){
+            SEM_wait(&semPledge);
+           // usleep(50000);
+            if (r->exit && *(r->exit)) {
+                  close(fdSigil);
+                    free(filenameSigil);
+                    freeThreadPledge(tp);
+                    return NULL;
+            }
+            if(startPos+275>size){
+                
+                
+                sigilData=readFd(fdSigil,startPos,size-startPos);
+                trama = crearTrama(0x02, r->ip, r->port, r->rutes[indexRuta].nomDest , size-startPos,sigilData);
+
+            }else{
+                sigilData=readFd(fdSigil,startPos,275);
+                trama = crearTrama(0x02, r->ip, r->port, r->rutes[indexRuta].nomDest , 275,sigilData);
+            }
+             //utiltizar semafor wait
+             //SEM_wait(semPledge);
+            int socket=enviarTramaDinamica(trama, r, 0);
+            if (socket<0){
+                printString(1, "Error sending sigil trama\n");
+                free(sigilData);
+                close(fdSigil);
+                free(filenameSigil);
+                freeThreadPledge(tp);
+
+                return NULL;
+            }
+            startPos+=275;
+
+            free(sigilData);
+            
+        }
+        printString(1, "Sigil sent.\n");
+
+       
+        close(fdSigil);
+        free(filenameSigil);
+
+
     time_t inici = time(NULL);         
     const double timeout = 120.0;
     while(1){
@@ -183,12 +274,16 @@ void* pledge (void *arg){
         if (r->exit && *(r->exit)) {
             break;
         }
-        if(r->rutes[indexRuta].alianca=='S' || r->rutes[indexRuta].alianca=='N'){
+        /*if(r->rutes[indexRuta].alianca=='S' || r->rutes[indexRuta].alianca=='N'){
+            break;
+        }*/
+        if(r->envoys[tp->indexEnvoy].ackFitxer==1 && r->envoys[tp->indexEnvoy].ackMD5SUM==1){//ha rebut acks
             break;
         }
     }
+    //r->envoys[tp->indexEnvoy].status=NULL;
+    resetEnvoy(&r->envoys[tp->indexEnvoy]);
     freeThreadPledge(tp);
-    r->envoyTemporalIsBusy = 0; 
     return NULL;
 } 
 
@@ -227,13 +322,25 @@ void pledgeRespond ( Regne *r,char** paraules,int n_paraules){
         return;
     }
 
-    if(r->rutes[trobat].alianca=='P'){
+    if(r->rutes[trobat].ackFitxerStatus==0 || r->rutes[trobat].ackMD5SUMStatus==0){
+        r->rutes[trobat].ackFitxerStatus=0;
+        r->rutes[trobat].ackMD5SUMStatus==0;
+        r->rutes[trobat].alianca='N';
+        printString(1,"Something went wrong, ack's are wrong. Try again when next pledge.\n");
+        return;
+    }
+
+    if(r->rutes[trobat].alianca=='O'){
+        char* data[DATA_SIZE];
      if(strcasecmp(paraules[3], "reject")==0){
-        enviarTramaDirecte(crearTrama(0x03, r->ip, r->port, r->nom, strlen("REJECT"), "REJECT"), r->rutes[trobat].portDest, r->rutes[trobat].ipDest, paraules[2]);
+        //<ACCEPT/REJECT>&<RealmName>
+        snprintf(data, DATA_SIZE, "REJECT&%s",r->nom);
+        enviarTramaDirecte(crearTrama(0x03, r->ip, r->port, r->rutes[trobat].nomDest, strlen(data), data), r->rutes[trobat].portDest, r->rutes[trobat].ipDest, paraules[2]);
         r->rutes[trobat].alianca='N';
         return;
     } else if(strcasecmp(paraules[3], "accept")==0){
-        int socket=enviarTramaDirecteSenseTancar(crearTrama(0x03, r->ip, r->port, r->nom, strlen("ACCEPT"), "ACCEPT"), r->rutes[trobat].portDest, r->rutes[trobat].ipDest, paraules[2]);
+        snprintf(data, DATA_SIZE, "ACCEPT&%s",r->nom);
+        int socket=enviarTramaDirecteSenseTancar(crearTrama(0x03, r->ip, r->port, r->rutes[trobat].nomDest, strlen(data), data), r->rutes[trobat].portDest, r->rutes[trobat].ipDest, paraules[2]);
         if(socket<0){
             return;
         }
@@ -278,6 +385,40 @@ void pledgeRespond ( Regne *r,char** paraules,int n_paraules){
    
 }
 
+
+void pledgeStatus(Regne *r){
+
+    int foundAny=0;
+    for (int i = 0; i < r->n_rutes; i++){
+        if(strcmp(r->rutes[i].nomDest,"DEFAULT")==0) continue;
+
+        printString(1, "- ");
+        printString(1, r->rutes[i].nomDest);
+        printString(1, ": ");
+        switch (r->rutes[i].alianca){
+            case 'O':
+                printString(1, "ON_PENDING\n");
+                foundAny=1;
+                break;
+            case 'S':
+                printString(1, "ALLIED\n");
+                foundAny=1;
+                break;
+            case 'P':
+                printString(1, "PENDING\n");
+                foundAny=1;
+                break;
+            case 'T':
+                printString(1, "FAILED\n");
+                foundAny=1;
+                break;
+        }  
+    }
+    if(foundAny==0){
+        printString(1, "You have no pledges awaiting or accepted\n");
+    }
+}
+
 /*
 
 DESCONEXIÓ DE MAESTER
@@ -298,24 +439,7 @@ void notificarDesconnexioAliances(Regne *r){
     }
 }
 
-/*
-    PLEDGE STATUS
-*/
 
-__attribute__((unused)) static char *aliancesStr [3] = {"PENDING", "ALLIED", "ON_PENDING"};
-
-void pledgeStatus (__attribute__((unused))Regne *r){
-
-    /*for (int i = 0; i < r->n_rutes; i++){
-
-        char *buffer;
-        asprintf(&buffer, "- %s: %s\n", r->rutes[i].nomDest, aliancesStr[(int) r->rutes[i].alianca]);
-        printString(1,buffer);
-        free(buffer);
-    }*/
-
-    printString(1, "Command OK\n");
-}
 
 /*
     ENVOY STATUS

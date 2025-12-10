@@ -9,11 +9,12 @@
 #include <stdio.h>
 #include <pthread.h>
 #include "funcions_basiques.h"
-#include "config.h"
+
 #include "regne.h"
 #include "producte.h"
 #include "client.h"
-
+#include "server.h"
+#include "config.h"
 #define COM_LEN 256
 
 typedef struct _ThreadReadTerminal {//no sutiltiza aquesta funcio pero la deixem per si de cas

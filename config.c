@@ -62,9 +62,14 @@ REALMS
 */
 
 
+
 void freeEnvoy(Envoy e){
     if (e.nomRegneViatge != NULL){
         free(e.nomRegneViatge);
+    }
+    if (e.status ) {
+        free(e.status);
+        e.status = NULL;
     }
 }
 
@@ -78,6 +83,7 @@ void freeRuta(Ruta r){
     }*/
    if (r.nomDest) free(r.nomDest);
     if (r.ipDest)  free(r.ipDest);
+
    
 }
 void freeRegne(Regne *r){
@@ -110,10 +116,13 @@ void freeRegne(Regne *r){
         free(r->envoys);
     }
     //free(r->exit);
-    if (r->n_fils != 0){
-        free(r->fils);
-    }  
+    
+     free(r->fils);
+     r->fils = NULL;        
+    free(r->st); 
     free(r);
+
+
 }
 
 /*
@@ -122,8 +131,10 @@ void freeRegne(Regne *r){
 
 void initializeEnvoy (Envoy *e){
 
-    e->status = 0;
+    e->status = NULL;
     e->nomRegneViatge = NULL;
+    e->ackFitxer = 0;     
+    e->ackMD5SUM = 0;
 }
 
 void initializeRuta (Ruta *r){
@@ -133,6 +144,10 @@ void initializeRuta (Ruta *r){
     r->portDest = 0;
     r->alianca = 'N'; 
     r->esDirectamentConectat = 0;
+    r->sigilSize = 0;
+    r->MD5SUM[0] = '\0';
+    r->ackFitxerStatus=0;
+    r->ackMD5SUMStatus=0;
 }
 
 void initializeRegne (Regne *r){
@@ -149,9 +164,12 @@ void initializeRegne (Regne *r){
     r->exit = 0;
     r->fils = NULL;
     r->n_fils = 0;
+    r->st = NULL;
+    r->n_serverThreads = 0;
 
 
     r->envoyTemporalIsBusy = 0;//borrar per fase 3
+
 
 }
 
@@ -161,7 +179,14 @@ void initializeRegne (Regne *r){
 
 void envoyCpy (Envoy *dest, Envoy *org){
 
-    dest->status = org->status;
+
+    if (dest->status != NULL){
+        free(dest->status);
+    }
+    if (org->status != NULL){
+        dest->status = malloc ((strlen(org->status) + 1) * sizeof(char));
+        strcpy(dest->status, org->status);
+    }
 
     if (dest->nomRegneViatge != NULL){
         free(dest->nomRegneViatge);
@@ -170,6 +195,9 @@ void envoyCpy (Envoy *dest, Envoy *org){
         dest->nomRegneViatge = malloc ((strlen(org->nomRegneViatge) + 1) * sizeof(char));
         strcpy(dest->nomRegneViatge, org->nomRegneViatge);
     }
+    dest->ackFitxer = org->ackFitxer;
+    dest->ackMD5SUM = org->ackMD5SUM;
+
 }
 
 void rutaCpy (Ruta *dest, Ruta *org){
@@ -191,6 +219,9 @@ void rutaCpy (Ruta *dest, Ruta *org){
 
     dest->esDirectamentConectat = org->esDirectamentConectat;
     dest->alianca = org->alianca;
+    dest->sigilSize = org->sigilSize;
+    strcpy(dest->MD5SUM, org->MD5SUM);
+
 }
 
 void regneCpy (Regne *dest, Regne* org){
@@ -241,6 +272,10 @@ void regneCpy (Regne *dest, Regne* org){
 
     dest->fd_server = org->fd_server;
     dest->exit = org->exit;
+
+
+
+
 }
 
 Regne *extractInfo (const char *nomFitxer) {
@@ -272,17 +307,18 @@ Regne *extractInfo (const char *nomFitxer) {
     //printString(1, r->nom);
     r->rutaArxius = readUntil(f, '\n', &trash);
     eliminarCaracter(r->rutaArxius, '&');
-    //printString(1, "\nrutaArxius: ");
-    //printString(1, r->rutaArxius);
+    for (char *p = r->rutaArxius; *p; p++) {
+        if (*p == '\r' || *p == '\n') {
+            *p = '\0';
+            break;
+        }
+    }
     char *strEnvoys = readUntil(f, '\n', &trash);
     r->n_envoys = atoi(strEnvoys);
     free(strEnvoys);
     r->envoys = malloc (r->n_envoys * sizeof(Envoy));
     for (int i = 0; i < r->n_envoys; i++)
         initializeEnvoy(&(r->envoys[i]));
-    //printString(1, "\nn envoys: ");
-    //printUInt(1, r->n_envoys);
-    //printChar(1, '\n');
 
     r->ip = readUntil(f, '\n', &trash); 
    size_t len;
@@ -396,6 +432,30 @@ int comprovarRegneExisteix(Regne *r, char * nomRegneRuta) {
     return 1; 
 }
 
+void setStatusEnvoy(Envoy *e, const char *text) {
+    if (!e) return;
+    if (e->status) {
+        free(e->status);
+        e->status = NULL;
+    }
+    if (text) {
+        e->status = malloc(strlen(text) + 1);
+        if (e->status) {
+            strcpy(e->status, text);
+        }
+    } else {
+        e->status = NULL;
+    }
+}
+
+void resetEnvoy(Envoy *e) {
+    if (e->status) {
+        free(e->status);
+        e->status = NULL;
+    }
+    e->ackFitxer = 0;
+    e->ackMD5SUM = 0;
+}
 
 
 

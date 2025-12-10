@@ -14,7 +14,7 @@
 #include "server.h"
 #include "client.h"
 
- 
+
 
  int exitFlag=0;
 
@@ -40,28 +40,34 @@ int main (int argc, char *argv[]){
     r->exit = &exitFlag;
     signal(SIGINT, signalHandler);
     //crear thread servidor 
-     pthread_t threadserver;
-    pthread_create(&threadserver,NULL,runServer,(void *)r);
-
+    //// pthread_t threadserver;
+    ////pthread_create(&threadserver,NULL,runServer,(void *)r);
+  
     //iniciar terminal
+
     runTerminal(r, fitxerStock);
    
-    //esperar que tots els threads acabin
     for(int i=0;i<r->n_fils;i++){
         pthread_join(r->fils[i].thread_id,NULL);
     }
-
-    pthread_join(threadserver, NULL);
+    for(int i=0;i<r->n_serverThreads;){
+       // if(r->st[i]->thread_complete==1){
+            
+           // pthread_cancel(r->st[i]->thread_id);
+             close(r->st[i]->client_fd);
+            pthread_join(r->st[i]->thread_id, NULL);
+          
+            removeThreadServidor(r, i); 
+        /*} else {
+            i++; 
+        }*/
+    }
+    close(r->fd_server);
     freeRegne(r);
     /*pid_t pid = fork();
         if (pid == 0) {
             pthread_kill(threadserver, SIGKILL);
             _exit(0);   
     }*/
-
-  
-  
-
-    
     return 0;     
 }

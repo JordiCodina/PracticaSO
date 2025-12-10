@@ -13,6 +13,9 @@
 #include "config.h"
 #include "client.h"
 #include "server.h"
+#include "semaphore.h"
+
+
 
 
 #define FILENAME_SIGIL_SIZE 100
@@ -21,6 +24,7 @@ typedef struct Thread_pledge {
     Regne *r;
     char **paraules;
     int n_paraules;
+    int indexEnvoy;
 } Thread_pledge;
 
 int comprovarRutaRegneValid(char *str,int n_rutes , Ruta *rutes);
@@ -30,7 +34,7 @@ int comprovarRutaRegneValid(char *str,int n_rutes , Ruta *rutes);
 void listRealms(Regne *r);
 
 // Comanda PLEDGE
-void sendEnvoy(Regne *r, char *casa);
+//void sendEnvoy(Regne *r, char *casa);
 //void pledge (Regne *r, char comanda [100]);
 //void pledge (Regne *r,char **paraules);
 void* pledge (void *arg);

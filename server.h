@@ -9,11 +9,15 @@
 #include <time.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/select.h>
 
 #include "funcions_basiques.h"
 #include "client.h"
-#include "config.h"
+
 #include "producte.h"
+#include "config.h"
+#include "semaphore.h"
+
 
 
 #define ERROR_MALLOC "Error: malloc falló\n"
@@ -29,6 +33,14 @@
 
 #define BUFFER_SIZE 256
 
+
+
+ typedef struct {
+    Regne *r;          
+    ServerThread *st;   
+} ThreadUnServidor; 
+
+
 int create_server_socket(int port);
 int accept_client_connection(int server_fd);
 
@@ -38,4 +50,7 @@ void  respondPledge(int res);
 void *runServer(void *aregne);
 
 void closeServer(Regne *r);
+
+
+void creaServer(Regne *r);
 #endif

@@ -62,10 +62,10 @@ unsigned short calcularChecksum(Trama *t);
 
 ClientConf *trobarSeguentMaester(Regne *r, Trama *t);
 
-void enviarTramaDinamica(Trama *t, Regne *r, int esHopping) ;//aixo es mes per si hi ha un possible hopping 
+int enviarTramaDinamica(Trama *t, Regne *r, int esHopping) ;//aixo es mes per si hi ha un possible hopping 
 int enviarTramaDirecte(Trama *t,int portDest,char *ipDest, char * nomDest);//enviament directe sense hopping si saps ja tot
 int  enviarTramaDirecteSenseTancar(Trama *t,int portDest,char *ipDest, char * nomDest);
-void enviarTramaSocket(Trama *t, int socket) ;
+void  enviarTramaSocket(Trama *t, int socket) ;
 
 int create_client_socket(const char *ip, int port);
 

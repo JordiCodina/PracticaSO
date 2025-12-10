@@ -17,8 +17,9 @@
 #define FILENAME_STOCK_SIZE 100
 
 //comandes
-void listProductsMaester(char *nomFitxer);
+void listProductsMaester(char *nomFitxer, int opcio,char * nomAliat) ;
 void listProductsAliat(Regne *r, char *nomAliat);
-void startTrade(Regne * regneActual, char* comand);
+void startTrade(Regne * regneActual, char* comand, fd_set master_set, int max_fd) ;
+
 
 #endif

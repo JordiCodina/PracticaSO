@@ -214,6 +214,15 @@ int getSize(int fd){
     return lseek(fd, 0, SEEK_END);
 }
 
+char* readFd(int fd,int startPos, int size){
+    lseek(fd, startPos, SEEK_SET);
+    char *buffer=malloc((size+1)*sizeof(char));
+    read(fd, buffer, size);
+    buffer[size]='\0';
+    //printString(1,buffer);
+    return buffer;
+}
+
 
 
 char* llegirComanda(int *exitflag) {
@@ -247,4 +256,64 @@ char* llegirComanda(int *exitflag) {
         }
     }
 }
+
+
+
+
+char * calcularMD5SUM(const char *filepath) {
+    int pipefd[2];
+    if (pipe(pipefd) < 0) return NULL;
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        close(pipefd[0]);
+        close(pipefd[1]);
+        return NULL;
+    }
+
+    if (pid == 0) {
+        dup2(pipefd[1], STDOUT_FILENO);
+        close(pipefd[0]);
+        close(pipefd[1]);
+        execlp("md5sum", "md5sum", filepath, NULL);
+        exit(1);
+    }
+
+    close(pipefd[1]);
+
+    char buffer[256] = {0};
+    ssize_t n = read(pipefd[0], buffer, sizeof(buffer)-1);
+    close(pipefd[0]);
+
+    int status;
+    waitpid(pid, &status, 0);
+
+    if (n <= 0 || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+        return NULL;
+    }
+
+    // Busca el primer espai
+    char *space = strchr(buffer, ' ');
+    if (!space) return NULL;
+
+    size_t len = space - buffer;
+    if (len != 32) return NULL;  // longitud MD5 correcte
+
+    char *md5 = malloc(33);
+    if (!md5) return NULL;
+
+    memcpy(md5, buffer, 32);
+    md5[32] = '\0';
+
+    return md5;
+}
+
+key_t generarClauIPC(char *regneOG,char*regneDest,int comanda) {//1 segell 2 fitxer prod 3compra
+    
+    char keyString[256];
+    snprintf(keyString, sizeof(keyString), "%s_%s_%d", regneOG, regneDest, comanda);
+    key_t key = ftok(keyString, comanda);
+    return key;
+}
+
 

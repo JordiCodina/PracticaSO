@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include "funcions_basiques.h"
 
+
 typedef struct
 {
     char name[100];
@@ -18,20 +19,49 @@ typedef struct
     float weight;
 } Producte;
 
-typedef struct {
+/*typedef struct {
 
     char status;
     char *nomRegneViatge;
+    
+
+} Envoy;*/
+
+typedef struct {
+
+    char *status;//"lliure=NULL"  "pledge" "pledgeRespond"...
+    char *nomRegneViatge;
+    int ackFitxer;
+    int ackMD5SUM;  
 
 } Envoy;
+/*
+typedef struct {
 
+    int status;
+    int tipus;
+    char * ordre;
+    char *nomRegneOrg;
+
+} Ack;
+*/
 typedef struct {
 
     char *nomDest;
     char *ipDest;
     int portDest;
     int esDirectamentConectat; // 1 -> sí, 0 -> no // es conegut no es el mateix que alianca , es per el cas de les ip amb *.*.*.* 0 de la configuracio inical.Llavors si es 0 representa  que si fem una aliança = 'S' haurem de substiruir aquest valors de ip i port, si no no cal
-    char alianca; // "S" o "N" // si/no son aliats ,o "P" // s'ha fet una request
+    char alianca; // "S" o "N" // si/no son aliats ,o "P" // 'O' // s'ha fet una request // 'T' timeout // 'I' inactiu 
+
+    int sigilSize;
+
+    char MD5SUM[33];
+
+    int ackFitxerStatus;
+    int ackMD5SUMStatus;
+
+   // Ack *acks;
+    //int nAcks;
 
 } Ruta;
 
@@ -42,7 +72,16 @@ typedef struct {
     int comanda;
 
 } Fil;
-typedef struct {
+
+
+typedef struct serverThread {
+    pthread_t thread_id;
+    int thread_complete;
+    int client_fd;
+} ServerThread;
+
+
+typedef struct  {
 
     char *nom;
     char *rutaArxius;
@@ -61,13 +100,17 @@ typedef struct {
     Fil *fils;//aixo potser s'hauria de posar a envoys pero de moment tenim nomes 1
     int n_fils;
 
+    ServerThread **st;
+    int n_serverThreads;
+
+
+    //char *envoyStatus; //"lliure=NULL"  "pledge" "pledgeRespond"...
+    //int ackFitxer;
+    //int ackMD5SUM;
+    
     int envoyTemporalIsBusy;//si 1 esta ocupat , si 0 esta lliure //provisional per fase 2
 
 } Regne;
-
-
-
-
 
 
 
@@ -104,5 +147,13 @@ Producte *extreureProductes(int fProductes, int *n_productes);
 
 
 int comprovarRegneExisteix(Regne *r, char * nomRegneRuta);
+
+
+//void afegirAck(Ruta *r, int status, int tipus, const char *ordre, const char *nomRegneOrg);
+
+//void eliminarAck(Ruta *r, Ack *a);
+
+void setStatusEnvoy(Envoy *e, const char *text);
+void resetEnvoy(Envoy *e) ;
 
 #endif

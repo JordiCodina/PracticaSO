@@ -13,6 +13,7 @@
 
 #define BUF_SIZE 256
 
+#define MD5_LEN 32
 
 /*
     funcio per printar un sol caracter
@@ -69,6 +70,8 @@ void eliminarCaracter(char *str, char c);
 
 int getSize(int fd);
 
+char * calcularMD5SUM(const char *filepath) ;
 char* llegirComanda(int *exitflag) ;
 
+char* readFd(int fd,int startPos, int size);
 #endif
