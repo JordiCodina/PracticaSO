@@ -270,17 +270,11 @@ void regneCpy (Regne *dest, Regne* org){
     dest->fd_server = org->fd_server;
     dest->exit = org->exit;
 
-
-
-
 }
 
 Regne *extractInfo (const char *nomFitxer) {
 
     int f = open(nomFitxer ,O_RDONLY);
-    //printString(1, "nom del fitxer: ");
-    //printString(1, (char *) nomFitxer);
-
     if (f == -1){
         printString(1, "Error opening configuration file.\n");
         return NULL;
@@ -383,6 +377,7 @@ PRODUCTES
 
 void cpyProducte (Producte *dest, Producte *org){
 
+    memset(dest, 0, sizeof(Producte));
     strcpy((*dest).name, (*org).name);
     (*dest).amount = (*org).amount;
     (*dest).weight = (*org).weight;

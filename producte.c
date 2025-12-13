@@ -3,6 +3,15 @@
 
 
 
+/*
+
+@brief Funció que rep els productes enviats per un aliat i els desa en un fitxer.
+@param r Punter a la estructura Regne que conté la informació del regne actual.
+@param socket Descriptor del socket utilitzat per la comunicació.
+@param t Punter a la estructura Trama que conté la informació de la trama rebuda.
+@param indexAliat Índex del regne aliat a la taula de rutes.
+
+*/
 
 void rebreProductes(Regne *r, int socket, Trama *t,int indexAliat) {
 
@@ -19,7 +28,6 @@ void rebreProductes(Regne *r, int socket, Trama *t,int indexAliat) {
     int fileSize   = atoi(paraules[1]);
     char *MD5Esperat = paraules[2];
 
-    //
     Trama *ack = crearTrama(0x31, NULL, 0, NULL, 2, "OK");
     write(socket, ack, sizeof(Trama));
     free(ack);
@@ -39,6 +47,7 @@ void rebreProductes(Regne *r, int socket, Trama *t,int indexAliat) {
     }
     lseek(fd, 0, SEEK_END);
     int bytesRebuts = 0;
+    //comencem a rebre les trames amb les dades del fitxer productes
     while (bytesRebuts < fileSize) {
         Trama tramaRebuda;
         int n = read(socket, &tramaRebuda, sizeof(Trama));
@@ -59,9 +68,9 @@ void rebreProductes(Regne *r, int socket, Trama *t,int indexAliat) {
             freeTokens(paraules, n_paraules);
             return;
         }
+        //escrivim les dades rebudes al fitxer temp de la carpeta del regne 
         write(fd, tramaRebuda.data, tramaRebuda.dataLength);
         bytesRebuts += tramaRebuda.dataLength;
-       // SEM_signal(&semRecv);
     }
     close(fd);
     char *md5 = calcularMD5SUM(fitxerPath);
@@ -80,8 +89,7 @@ void rebreProductes(Regne *r, int socket, Trama *t,int indexAliat) {
         ackMD5 = crearTrama(0x32, NULL, 0, NULL, strlen("CHECK_KO"), "CHECK_KO");
     }
     enviarTramaDirecte(ackMD5,r->rutes[indexAliat].portDest,r->rutes[indexAliat].ipDest,r->nom);
-    
-    listProductsMaester(fitxerPath,1,r->rutes[indexAliat].nomDest);
+        listProductsMaester(fitxerPath,1,r->rutes[indexAliat].nomDest);
 
     free(md5);
     free(fitxerPath);
@@ -103,11 +111,17 @@ void listProductsAliat(Regne *r, char *nomAliat/*,int* exitFlag*/) {
             if(r->rutes[i].alianca=='S'){
                 esAliat=1;
                 indexAliat=i;
-                /*char *buffer;
-                asprintf(&buffer, "Direct route available (allied).No hops required. %s...\n", nomAliat);
+                char *buffer;
+                asprintf(&buffer, "Direct route available to %s (allied).No hops required.\n", nomAliat);
                 printString(1, buffer);
-                free(buffer);*/
+                free(buffer);
                 break;
+            }else if(r->rutes[i].alianca=='I'){
+                char *buffer;
+                asprintf(&buffer, "ERROR: Realm %s is inactive. Cannot receive products now.\n", nomAliat);
+                printString(1, buffer);
+                free(buffer);
+                return ;
             }else{
                 char *buffer;
                 asprintf(&buffer, "ERROR: You must have an alliance with %s to trade\n", nomAliat);
@@ -119,7 +133,6 @@ void listProductsAliat(Regne *r, char *nomAliat/*,int* exitFlag*/) {
         }
     }
     if(!esAliat){
-        //printString(1, "You are not allied with this Realm or its inactive.\n");
         return;
     }
     Trama *t = crearTrama(0x11, r->ip, r->port, nomAliat, 0, r->nom);
@@ -130,7 +143,6 @@ void listProductsAliat(Regne *r, char *nomAliat/*,int* exitFlag*/) {
     }
     printString(1, "Waiting for product list from ally...\n");
 
-    //Trama *tramaPeticioLlista=waitForRead(2.0,socket,exitFlag);
     Trama *tramaPeticioLlista = malloc(sizeof(Trama));
     int n=read(socket, tramaPeticioLlista, sizeof(Trama));
     if(n<=0){
@@ -139,8 +151,9 @@ void listProductsAliat(Regne *r, char *nomAliat/*,int* exitFlag*/) {
         close(socket);
         return;
     }
+    
     if(tramaPeticioLlista!=NULL || tramaPeticioLlista->tipus==0x69){
-       
+       //si no hem llegit res o es un nack , sera la 0x12 que es la iniciat per rebre productes
         if (tramaPeticioLlista && tramaPeticioLlista->tipus == 0x12) {
             rebreProductes(r, socket, tramaPeticioLlista, indexAliat);
         }
@@ -196,6 +209,7 @@ void listProductsMaester(char *nomFitxer, int opcio,char * nomAliat) {
         free(miss);
         return;
     }
+
     Producte *productes = extreureProductes(fd,&n_productes);
     close(fd);
     if(productes == NULL){
@@ -236,11 +250,24 @@ int crearFitxerComandes(char *nomFitxer){
         return fd;
     }
 
+/*
+    
+@brief Funció que envia una comanda de compra a un regne aliat.Espera el seur tetorn de resposta , incolent el md5sum.Si tot va be actualitza l'stock .
+@param nomRegneDest Nom del regne aliat al qual s'envia la comanda.
+@param nomMaester Nom del maester que envia la comanda.
+@param productes Array de productes que es volen comprar.
+@param numProductes Nombre de productes a comprar.
+@param rutaArxius Ruta dels arxius del regne actual.
+@param r Punter a la estructura Regne que conté la informació del regne actual.
+
+    
+*/
 void sendCompra(char* nomRegneDest, char *nomMaester, Producte *productes, int numProductes, char *rutaArxius, Regne *r) {
     if (!nomRegneDest || !nomMaester || !productes || numProductes <= 0) {
         printString(1, "Cannot send trade: missing information\n");
         return;
     }
+    //comprovar que el regne existeix i es aliat
     int indexRuta=-1;
     for (int i=0;i<r->n_rutes;i++){
         if(strcmp(r->rutes[i].nomDest,nomRegneDest)==0){            
@@ -248,37 +275,49 @@ void sendCompra(char* nomRegneDest, char *nomMaester, Producte *productes, int n
             break;
         }
     }
+    if(r->rutes[indexRuta].alianca!='S'){    
+        if(r->rutes[indexRuta].alianca=='I'){
+            printString(1, "Allied is inactive.Cannot send trade.\n");    
+            return;
+        }
+    }
+    //per si de cas creem directori i el fitxer de comandes i els posem a dins
     crearDirectori(r->rutaArxius);
     char *nomFitxer;
-    nomFitxer=crearRutaComanda(rutaArxius, nomMaester,nomRegneDest);
-    int fd=crearFitxerComandes(nomFitxer);
+    nomFitxer=crearRutaComanda(rutaArxius, nomMaester,nomRegneDest);//aqui nomes crees la string de ruta
+    int fd=crearFitxerComandes(nomFitxer);//aqui crees el fitxer reiniciantlo 
     if(fd==-1){
         free(nomFitxer);
         return;
     }
     char *miss2; 
     for (int i = 0; i <numProductes; i++) { 
-        asprintf(&miss2, "%s:%d\n", productes[i].name,productes[i].amount); 
+        asprintf(&miss2, "%s:%d\n", productes[i].name,productes[i].amount); //posem els prodcutes al fitxer de comandes
+       
         write(fd, miss2, strlen(miss2)); 
         free(miss2); 
     } 
-    
     close(fd);
+    //abans hem fet un write i ara toca enviar la comanda per tant abans l'hem tancat i ara el tornem a obrir per llegir
     int fdList=open(nomFitxer, O_RDONLY);
-    if(fdList==-1){
+    if(fdList<0){
         printString(1, "Error opening trade file to read\n");
         free(nomFitxer);
         return;
     }
-
+    //preparar dades per enviar la trama 0x14
     int size=getSize(fdList);
     char *md5 = calcularMD5SUM(nomFitxer);
-
-
+    if (!md5) {
+        printString(1, "Error calculating MD5 for trade file\n");
+        close(fdList);
+        free(nomFitxer);
+        return;
+    }
     char data[275];
     snprintf(data, sizeof(data), "%s&%d&%s", nomFitxer, size, md5);
     free(md5);
-  
+    //enviar trama 0x14
     Trama *tramaPeticioComanda=crearTrama(0x14,r->ip , r->port, nomRegneDest, strlen(data), data);
     int socket=enviarTramaDirecteSenseTancar(tramaPeticioComanda, r->rutes[indexRuta].portDest, r->rutes[indexRuta].ipDest, nomRegneDest);//el free de trama es fa aqui dintre
     if(socket<0){
@@ -287,7 +326,7 @@ void sendCompra(char* nomRegneDest, char *nomMaester, Producte *productes, int n
         free(nomFitxer);
         return;
     }
-    
+    //eseperar ack/nack de la comanda
     Trama * ackPeticioComanda=crearTrama(0, NULL, 0, NULL, 0, NULL);
     int n=read(socket, ackPeticioComanda, sizeof(Trama));
     if(n<=0){
@@ -307,15 +346,18 @@ void sendCompra(char* nomRegneDest, char *nomMaester, Producte *productes, int n
     }
     free(ackPeticioComanda);
 
+    //si tot va be aqui enviem la llista de productes en trames 0x15
         char *listData;
         printString(1, "Sending list ...\n"); 
         int  startPos = 0;
         Trama *trama=NULL;
-        while(startPos<=size){
+        while(startPos< size){
             usleep(5000);
             if (r->exit && *(r->exit)) {
-                
-                    return;
+                close(fdList);
+                close(socket);
+                free(nomFitxer);
+                return;
             }
             if(startPos+275>size){
                  
@@ -334,22 +376,24 @@ void sendCompra(char* nomRegneDest, char *nomMaester, Producte *productes, int n
             
         }
         close(fdList);
-        int n4=read(socket, tramaPeticioComanda, sizeof(Trama));
+        //esperar ack/nack amb md5
+            Trama *tramaPeticioComandaAckmd5=crearTrama(0, NULL, 0, NULL, 0, NULL);
+        int n4=read(socket, tramaPeticioComandaAckmd5, sizeof(Trama));
         if(n4<=0){
-            free(tramaPeticioComanda);
+            free(tramaPeticioComandaAckmd5);
             printString(1, "Did not receive ACK/NACK for trade list.\n");
             free(nomFitxer);
             close(socket);
             return;
         }
-        if (tramaPeticioComanda->tipus != 0x32 || strcmp(tramaPeticioComanda->data,"CHECK_OK")!=0) {  
+        if (tramaPeticioComandaAckmd5->tipus != 0x32 || strcmp(tramaPeticioComandaAckmd5->data,"CHECK_OK")!=0) {  
             printString(1, "MD5 checksum does not match for trade list.\n");
-            free(tramaPeticioComanda);
+            free(tramaPeticioComandaAckmd5);
             free(nomFitxer);
             close(socket);
             return;
         }
-        printString(1, "List sent.\n");
+        free(tramaPeticioComandaAckmd5);        
     char *miss; 
     asprintf(&miss,"Trade list sent to %s\n",nomRegneDest); printString(1,miss); free(miss);
     //LLEGEIR TRAMA 0X16
@@ -360,16 +404,15 @@ void sendCompra(char* nomRegneDest, char *nomMaester, Producte *productes, int n
         free(nomFitxer);
         free(tramaConfirmacioComanda);
         close(socket);
-
         return;
     }
+    //aqui en funcio de lo que ha retornat la trama apliquem canvis a l'stock o no
     if(tramaConfirmacioComanda->tipus==0x16){
         //aqui actualitzem el stock si la comanda ha anat be
         if(strcmp(tramaConfirmacioComanda->data,"OK")==0){
             char *nomStock;
             asprintf(&nomStock, "stock%s.db", r->nom);
             int n_stock = 0;
-
             int fdProductes = open(nomStock, O_RDONLY);
             if (fdProductes < 0) {
                 printString(1, "Error opening stock file to read\n");
@@ -432,7 +475,7 @@ Producte * crearProductesProvisionals(int n) {
     }
     return productes;
 }
-    int comprovarExistexProducte(char *nomProducte, Producte *productesDisponibles, int n_productes){
+int comprovarExistexProducte(char *nomProducte, Producte *productesDisponibles, int n_productes){
     for (int i = 0; i < n_productes; i++){
         if (!strcmp(nomProducte, productesDisponibles[i].name)){
             return 1;
@@ -514,7 +557,7 @@ void startTrade(Regne *regneActual, char *comand, fd_set *master_set, int *max_f
 
      int n_paraules = 0;
     char **paraules = tokenizer(comand, &n_paraules,' ');
-   
+   //comprovar que el regne existeix i es aliat
     int esAliat=0;
     for(int i=0 ;i<regneActual->n_rutes;i++){
         if(strcmp(regneActual->rutes[i].nomDest,paraules[2])==0){
@@ -524,24 +567,22 @@ void startTrade(Regne *regneActual, char *comand, fd_set *master_set, int *max_f
             }
         }
     }
+    //si no es alita fora
     if(!esAliat){
         printString(1, "You are not allied with this Realm or its inactive.\n");
         freeTokens(paraules, n_paraules);
         return;
     }
-
-
     Producte *productes = NULL;
-    char *miss;
     Producte *productesDisponibles = NULL;
     int n_productesDisponibles = 0;
-    
     char *nomRegneDest = strdup(paraules[2]);
+
+    char *miss;
     asprintf(&miss, "Entering trade mode with %s\n", nomRegneDest);
     printString(1, miss);
     free(miss);
-
-    //listProductsAliat(regneActual, nomRegneDest);
+    //obrim el fitxer de productes disponibles que tenim guardat a la nostre carpeta depres de fer LIST PRODUCTS
     char*missDir;
     asprintf(&missDir, "./%s/stock%s.db",regneActual->nom,nomRegneDest);
     int fdFitxerProductes = open(missDir, O_RDONLY);
@@ -552,7 +593,9 @@ void startTrade(Regne *regneActual, char *comand, fd_set *master_set, int *max_f
         return;
     }
     free(missDir);
+    //extreiem productes disponibles del fitxer de productes de la nostre carpeta
     productesDisponibles = extreureProductes(fdFitxerProductes, &n_productesDisponibles);
+    //printf
     listProductsMaesterAliat(productesDisponibles, n_productesDisponibles, nomRegneDest);
     if (productesDisponibles == NULL || n_productesDisponibles == 0) {
         printString(1, "No products available . Use LIST PRODUCTS first.\n");
@@ -562,19 +605,14 @@ void startTrade(Regne *regneActual, char *comand, fd_set *master_set, int *max_f
         freeTokens(paraules, n_paraules);
         return;
     } 
-    //mostrarProductesCompra(productesDisponibles, n_productesDisponibles);
     freeTokens(paraules, n_paraules);
     printString(1,"Trade> ");
+    //aqui comneça la terminal de trade(igual que terminal.c)
     do{
-        //printf("Received trade command: %s\n", comandaTrade);
-
-        
         comandaTradeN=-1;
         n_paraules = 0;
-        
         if(*(regneActual->exit) == 1){
             comandaTradeN = 7;
-            
             break;
         }
         char *comandaTrade = escoltarTot(master_set, max_fd, regneActual);
@@ -679,9 +717,7 @@ int treureDelStock(Producte *productes, int *n_productes, const char *nom, int q
         if (strcmp(productes[i].name, nom) == 0) {
             if (productes[i].amount < quantitat)
                 return 0;
-                 printf("Product %s amount: %d\n", productes[i].name, productes[i].amount);
             productes[i].amount -= quantitat;
-            printf("Product %s new amount: %d\n", productes[i].name, productes[i].amount);
             if (productes[i].amount <= 0) {
                 for (int j = i; j < *n_productes - 1; j++)
                     productes[j] = productes[j + 1];
@@ -710,7 +746,7 @@ void afegirAlStock(Producte *productes, int *n_productes,const char *nom, int qu
     (*n_productes)++;
 }
 
-//no borrar , no cal per fase 1
+
 void actualitzarProductes(char *nomFitxer, Producte *productes, int n_productes){
     int f = open (nomFitxer, O_WRONLY | O_TRUNC | O_CREAT, 0644);
     if (f == -1){
@@ -718,7 +754,7 @@ void actualitzarProductes(char *nomFitxer, Producte *productes, int n_productes)
         return;
     }
     for (int i = 0; i < n_productes; i++){  
-        memset(&productes[i], 0, sizeof(Producte));
+        
         write (f, &(productes[i]), sizeof(Producte));
     }
     close(f);

@@ -24,62 +24,13 @@ void exitMs (Regne *r){
     free(buffer);
 }
 
+/*
 
-void *waitExit(void *arg) {//no sutilitza aquesta funcio 
-   ThreadReadTerminal *tl = (ThreadReadTerminal *) arg;
+@brief Funció que gestiona la terminal del regne.
+@param r Punter a la estructura Regne que conté la informació del regne actual.
+@param fitxerStock Cadena de caràcters que conté el nom del fitxer d'stock de productes.
 
-    tl->comanda = malloc(COM_LEN);  
-    if (!tl->comanda) {
-        tl->thread_complete = 1;
-        return NULL;
-    }
-    int n = read(0, tl->comanda, COM_LEN - 1);
-    if (n < 0) n = 0;
-
-    if (n > 0 && tl->comanda[n-1] == '\n') {
-        tl->comanda[n-1] = '\0';
-    } else {
-        tl->comanda[n] = '\0';
-    }
-    tl->thread_complete = 1;
-    return NULL;
-}
-
-
-char *waitForExit(int *exitflag) {//no s'utlitza aquesta funcio pero la deixem per si de cas
-
-    ThreadReadTerminal *tl = malloc(sizeof(ThreadReadTerminal));
-    tl->thread_complete = 0;
-    pthread_t waitReadThread;
-    pthread_create(&waitReadThread, NULL, waitExit, tl);
-    while (1) {
-        if (*exitflag == 1) {
-            pid_t pid = fork();
-            if (pid == 0) {
-
-                pthread_kill(waitReadThread, SIGKILL);
-                _exit(0);
-            }
-            free(tl->comanda);   
-            free(tl);
-            return NULL;
-        }
-
-        if (tl->thread_complete == 1) {
-            break;
-        }
-        usleep(10000);
-    }
-    pthread_join(waitReadThread, NULL);
-    char *result = strdup(tl->comanda);
-    free(tl->comanda);  
-    free(tl);
-    return result;
-}
-
-
-
-
+*/
 
 void runTerminal (Regne *r, char *fitxerStock){
     char *comanda = NULL;
@@ -101,11 +52,12 @@ void runTerminal (Regne *r, char *fitxerStock){
             comandaN = 7;
             break;
         }
+        //escolta de comandes per teclat, fd de servidor (accept) i sockets de servidor(read)
+        //si no detecta cap comanda pero si altres, retorna null
         comanda = escoltarTot(&master_set, &max_fd, r);
         if (comanda == NULL) {
             continue;
         }
-        
             int n_paraules = 0;
             char **paraules = tokenizer(comanda, &n_paraules,' ');
             if (n_paraules == 0){
@@ -265,7 +217,6 @@ void runTerminal (Regne *r, char *fitxerStock){
     }
     exitMs (r);
     notificarDesconnexioAliances(r);
-    //freeRegne(r); //es fa al maester.c
     *(r->exit)=1;
     return;
 

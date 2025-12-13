@@ -1,3 +1,6 @@
+
+
+
 Tenim els maesters A , B i C , tots tenen el seu png i stock
 Per executar automaticament:
 
@@ -17,3 +20,10 @@ per executar manual
 
 make
 Maester <X> <stockX>
+
+
+Config actual de MV:
+
+A->montserrat
+B->matagalls
+C->montserrat

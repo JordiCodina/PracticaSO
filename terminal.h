@@ -17,12 +17,7 @@
 #include "config.h"
 #define COM_LEN 256
 
-typedef struct _ThreadReadTerminal {//no sutiltiza aquesta funcio pero la deixem per si de cas
-    char thread_complete;
-    char *comanda;
-} ThreadReadTerminal;
 
-char * waitForExit(int *exitflag);//no s'utlitza aquesta funcio pero la deixem per si de cas
 
 void runTerminal(Regne *r, char *fitxerStock);
 

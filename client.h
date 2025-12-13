@@ -51,10 +51,7 @@ typedef struct _ThreadLog {//no sutiltiza pero ho deixem temporalment per si de 
 } ThreadLog;
 
 
-
-//Trama * waitForRead(double timeout,int socket,int* exitflag);
-
-  void freeClientConf(ClientConf *conf);
+void freeClientConf(ClientConf *conf);
 
 Trama * crearTrama(char tipus,char *ip,int port,char *nom_desti,unsigned short dataLength,char *data);
 unsigned short calcularChecksum(Trama *t);

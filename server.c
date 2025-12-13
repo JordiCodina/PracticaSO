@@ -45,6 +45,11 @@ int accept_client_connection(int server_fd) {
     return new_socket;
 }
 
+/*
+
+@brief Aixo es per eliminar el thread de la llista de threads del servidor 
+
+*/
 void removeThreadServidor(Regne *r, int index) {
     if (r->n_serverThreads <= 0 || index < 0 || index >= r->n_serverThreads) return;
 
@@ -60,6 +65,10 @@ void removeThreadServidor(Regne *r, int index) {
         r->st = realloc(r->st, r->n_serverThreads * sizeof(ServerThread*));
     }
 }
+/*
+
+@brief Afegeix un nou thread a la llista de fils del regne.
+*/
 void afegirThread(Regne *r, int comandaN) {
     if (r->fils == NULL) {
         r->fils = malloc(sizeof(Fil));
@@ -71,6 +80,10 @@ void afegirThread(Regne *r, int comandaN) {
     r->fils[r->n_fils - 1].comanda = comandaN;
 }
 
+/*
+@brief Fa join als threads del servidor que han acabat amb  thread_complete==1
+
+*/
 void joinThreadServidor(Regne *r) {
      for(int i=0;i<r->n_serverThreads;){
         if(r->st[i]->thread_complete==1){
@@ -82,6 +95,10 @@ void joinThreadServidor(Regne *r) {
         }
     }
 }
+/*
+@brief Afegeix un nou ServerThread a la llista de serverThreads del regne.
+
+*/
 void afegirthreadServidor(Regne *r, ServerThread *st) {
     if (r->st == NULL) {
         r->st = malloc(sizeof(ServerThread*));
@@ -92,10 +109,15 @@ void afegirthreadServidor(Regne *r, ServerThread *st) {
     }
     r->st[r->n_serverThreads - 1] = st; 
 }
-/*
-    start trade 
-*/
 
+/*
+
+@brief aqui es verifica si el fitxer de la llista de comandes es correcte(suficient stock o que exsiteix tots els productes) i aplica els canvis a l'stock
+@param fdCommandes descriptor del fitxer de comandes que l'hem rebut i l'hem posat a la nostre carpeta
+@param fdStock descriptor del fitxer d'stock que te 
+@param r Punter a la estructura Regne que conté la informació del regne actual.
+
+*/
 int processarComandaProductesFitxer(int fdCommandes, int fdStock, Regne *r) {
 
     //llegir fitxer comandes i actualitzar stock
@@ -145,7 +167,20 @@ int processarComandaProductesFitxer(int fdCommandes, int fdStock, Regne *r) {
 }
 
 
+/*
 
+@brief Funció que gestiona inicialment la recepció de la comanda de productes (trama 0x14),mante el socket 
+i per tant tambe fa de comunicador  amb el mateix socket entre el regne que envia la llista de compra.
+Per tant no nomes rep 0x14 que es la trama inicial per rebre la comanda de productes, sino que tambe rep les trames 0x15
+que es per rebre el fitxer de comandes i  tambe enviar les acks corresponents.
+
+Finalment tambe actualitza l'stock si tot ha anat be enviant la confirmacio al regne aliat.
+
+@param t Punter a la estructura Trama que conté la informació de la trama rebuda
+@param r Punter a la estructura Regne que conté la informació del regne actual.
+@param client_sock Descriptor del socket del client que ha enviat la trama.
+
+*/
 void rebreComandaProductes (Trama *t, Regne *r, int client_sock){
    
     int n_paraules = 0;
@@ -164,18 +199,22 @@ void rebreComandaProductes (Trama *t, Regne *r, int client_sock){
         freeTokens(paraules2, n_paraules2);
         return;
     }
-
+    //buscar index aliat
     for(int i=0;i<r->n_rutes;i++){
         if(r->rutes[i].portDest==atoi(paraules2[1])){
             indexAliat=i;
             break;
         }
     }
+    //
     printString(1, ">>> Trade request received from Dragonstone.\n");
     char ackdata[DATA_SIZE];
     snprintf(ackdata, DATA_SIZE, "OK&%s",r->nom);
+    //si es correcte enviar ack Fitxer
     Trama * ackTrama=crearTrama(0x31, NULL, 0, NULL, strlen(ackdata), ackdata);
-    write(client_sock, ackTrama, sizeof(Trama));
+    enviarTramaSocket(ackTrama, client_sock);
+    
+
     free(ackTrama);
 
     char *nomFitxer = crearRutaComanda(r->rutaArxius, r->nom, r->rutes[indexAliat].nomDest);
@@ -219,10 +258,10 @@ void rebreComandaProductes (Trama *t, Regne *r, int client_sock){
 
         }
         
-        freeTokens(paraules, n_paraules);
-        freeTokens(paraules2, n_paraules2);
+       
 
         close(fdCommandes);
+        //tornem a obrir el fitxer de comandes per llegir-lo i processar la comanda
         fdCommandes = open(nomFitxer, O_RDONLY);
         if (fdCommandes == -1) {
             printString(1, "Error reobrint comandes en mode lectura\n");
@@ -230,29 +269,37 @@ void rebreComandaProductes (Trama *t, Regne *r, int client_sock){
             return;
         }
         char *md5 = calcularMD5SUM(nomFitxer);
-        if (!md5) {
-            printString(1, "Error calculating MD5 for received trade file\n");
-            close(fdCommandes);
-            free(nomFitxer);
-            return;
-        }
-        if (strcmp(md5, paraules[2]) != 0) {
-            Trama *md5nAck = crearTrama(0x32, NULL, 0, NULL, strlen("CHECK_KO"), "CHECK_KO");
-            enviarTramaSocket(md5nAck, client_sock);
-            free(md5nAck);
-            printString(1, "MD5 checksum does not match for received trade file\n");
-            free(md5);
-            close(fdCommandes);
-            free(nomFitxer);
+            if (!md5) {
+                printString(1, "Error calculating MD5 for received trade file\n");
+                close(fdCommandes);
+                free(nomFitxer);
+                freeTokens(paraules, n_paraules); 
+                freeTokens(paraules2, n_paraules2);
+                return;
+            }
+            if (strcmp(md5, paraules[2]) != 0) {
+                Trama *md5nAck = crearTrama(0x32, NULL, 0, NULL, strlen("CHECK_KO"), "CHECK_KO");
+                enviarTramaSocket(md5nAck, client_sock);
+                free(md5nAck);
+                printString(1, "MD5 checksum does not match for received trade file\n");
+                free(md5);
+                close(fdCommandes);
+                free(nomFitxer);
+                freeTokens(paraules, n_paraules); 
+                freeTokens(paraules2, n_paraules2);
+                return;
+            }
 
-            return;
-        }
+            free(md5);
+            freeTokens(paraules, n_paraules); 
+            freeTokens(paraules2, n_paraules2);
+        //ack md5 correcte
         Trama *md5Ack = crearTrama(0x32, NULL, 0, NULL, strlen("CHECK_OK"), "CHECK_OK");
         enviarTramaSocket(md5Ack, client_sock);
         free(md5Ack);
-
-
         free(nomFitxer);
+
+        //processar comanda i actualitzar stock
         char *stockFile;
         asprintf(&stockFile, "stock%s.db",r->nom);
         int fdStock = open(stockFile, O_RDWR);
@@ -260,10 +307,12 @@ void rebreComandaProductes (Trama *t, Regne *r, int client_sock){
             printString(1, "Error opening stock file to read/write\n");
             close(fdCommandes);
             free(stockFile);
+           
             return;
         }
 
         free(stockFile);
+        //
         int comandaStatus=processarComandaProductesFitxer(fdCommandes, fdStock, r);
          close(fdCommandes);
             close(fdStock);
@@ -280,13 +329,30 @@ void rebreComandaProductes (Trama *t, Regne *r, int client_sock){
     enviarTramaSocket(tramaRespostaComanda, client_sock);
     free(tramaRespostaComanda);
 
+
 } 
+
+//marcar alianca establerta ON pending
+void marcarAliancaPendent(Regne *r, int indexRuta){ 
+        r->rutes[indexRuta].ackMD5SUMStatus=1;
+            r->rutes[indexRuta].alianca = 'O';
+            printString(1, ">>> Alliance request received from ");
+            printString(1, r->rutes[indexRuta].nomDest);
+            printString(1, ".\n");
+}
 /*
 
 RESPONDRE A PETCIONS DEL CLIENT COM A SERVIDOR
 
 */
+/*
+@brief Funció que gestiona la recepció del fitxer de productes (trama 0x13) des d'un regne aliat.
+Rep una a una  en threads de servidor diferents i finalment si tot ha anat be envia l'ack corresponent.
 
+@param r Punter a la estructura Regne que conté la informació del regne actual.
+@param t Punter a la estructura Trama que conté la informació de la trama rebuda.
+
+*/
 void rebreSigil(Regne *r,Trama *t){
   // printf("Writing sigil data ...\n");
     
@@ -315,11 +381,16 @@ void rebreSigil(Regne *r,Trama *t){
         free(missDir);    
         return;
     }
-     
+     //si arriba un trama  ens posem al final del fitxer de sigil del regne desti i escrivim
     lseek(fd, 0, SEEK_END);
     write(fd, t->data, t->dataLength);
     printf("Sigil size: %d, File size: %d\n", r->rutes[indexRuta].sigilSize, getSize(fd));
+
+
+    //comprovar si ja hem rebut tot el fitxer , si es aixi comprovar md5 i enviar ack corresponent
     if(r->rutes[indexRuta].sigilSize <= getSize(fd)){ 
+
+         //comrpovar md5 i enviar ack corresponent
         char *md5 = calcularMD5SUM(fitxerPath);
         if (!md5) {
             printString(1, "Error calculant MD5\n");
@@ -330,13 +401,11 @@ void rebreSigil(Regne *r,Trama *t){
             return;
         }
         
+       
         Trama * ackMD5=crearTrama(0x32, NULL, 0,NULL, strlen("CHECK_OK"),"CHECK_OK");
         if(strcmp(md5, r->rutes[indexRuta].MD5SUM)==0){
             enviarTramaDirecte(ackMD5, atoi(paraules[1]), paraules[0], r->rutes[indexRuta].nomDest);
-            r->rutes[indexRuta].ackMD5SUMStatus=1;
-            printString(1, ">>> Alliance request received from ");
-            printString(1, r->rutes[indexRuta].nomDest);
-            printString(1, ".\n");
+            marcarAliancaPendent(r, indexRuta);
 
 
         }else{
@@ -361,6 +430,13 @@ void rebreSigil(Regne *r,Trama *t){
 /*
 
     rebre PLEDGE
+    @brief Funció que gestiona la recepció de la petició d'aliança (trama 0x02) des d'un regne aliat.
+    Tambe crea el fitxer del segell aliat buit i envia l'ack corresponent.
+
+@param t Punter a la estructura Trama que conté la informació de la trama rebuda
+@param r Punter a la estructura Regne que conté la informació del regne actual.
+@param socket Descriptor del socket del client que ha enviat la trama.
+
 */
 
  void processarTramaPledge(Trama *t, Regne *r,int socket) {
@@ -376,7 +452,7 @@ void rebreSigil(Regne *r,Trama *t){
     }
     for (int i = 0; i < r->n_rutes; i++) {
         if (strcmp(r->rutes[i].nomDest, paraules[0]) == 0) {
-            r->rutes[i].alianca = 'O';
+            //r->rutes[i].alianca = 'O';
             if (r->rutes[i].ipDest) {
                 free(r->rutes[i].ipDest);
             }
@@ -496,17 +572,20 @@ Rebre PLEDGE RESPOND
 
 rebre LLIST PRODUCTS
 
+@brief Funció que gestiona la recepció de la petició de llista de productes (trama 0x11) des d'un regne aliat.
+Rep la petició, comprova si hi ha alianca i si es així envia la llista de productes.
+@param t Punter a la estructura Trama que conté la informació de la trama rebuda
+@param r Punter a la estructura Regne que conté la informació del regne actual.
+@param client_sock Descriptor del socket del client que ha enviat la trama.
+
+
 */
 
 void processarTramaLlistarProductes(Trama *t, Regne *r,int client_sock) {
 
-       printString(1, "LIST PRODUCTS request from ");
-        printString(1, t->nom_origen);
-        printString(1, ".\n");
+
         int indexAliat=-1;
-      
         for(int i=0;i<r->n_rutes;i++){
-            
             char *ipPort;
             asprintf(&ipPort, "%s:%d", r->rutes[i].ipDest, r->rutes[i].portDest);
             if(strcmp(ipPort,t->nom_origen)==0 && strcmp(r->rutes[i].nomDest,"DEFAULT")!=0){
@@ -520,6 +599,10 @@ void processarTramaLlistarProductes(Trama *t, Regne *r,int client_sock) {
                     return;
                 }
                 if(r->rutes[i].alianca=='S'){
+                    
+                    printString(1, "LIST PRODUCTS request from ");
+                    printString(1, r->rutes[i].nomDest);
+                    printString(1, ".\n");
                     indexAliat=i;
                     
                 }
@@ -562,7 +645,8 @@ void processarTramaLlistarProductes(Trama *t, Regne *r,int client_sock) {
   
 
         Trama * trama = crearTrama(0x12, r->ip, r->port, r->rutes[indexAliat].nomDest , strlen(data),data);
-        write(client_sock, trama, sizeof(Trama));
+        enviarTramaSocket(trama, client_sock);
+        free(trama);
         printString(1, "Products delivered.\n");
 
         Trama * acktrama=crearTrama(0, NULL, 0, NULL, 0, NULL);
@@ -571,10 +655,12 @@ void processarTramaLlistarProductes(Trama *t, Regne *r,int client_sock) {
             free(acktrama);
             printString(1, "Did not receive ACK/NACK for product list.\n");
             close(fd);
-            free(trama);
+            
             return;
         }
+
         if (acktrama->tipus == 0x31) {  
+            
             int startPos = 0;
             char *blockData = NULL;
             Trama *productTrama = NULL;
@@ -613,7 +699,6 @@ void processarTramaLlistarProductes(Trama *t, Regne *r,int client_sock) {
                 printString(1, "All products sent.\n");
             }
         free(acktrama);
-        free(trama);
         close(fd);
         
 }
@@ -663,7 +748,7 @@ AQUI ES PROCESSEN TOTES LES TRAMES A PARTIR DEL TIPUS
                 printString(1, "Trama  rebuda:\n");
               
                 break;
-            case 0x27:
+            case 0x27:// trama que indica que s'ha de finalitzat un realm aliat i has de posar la ruta com a inactiva
                 int n_paraules3 = 0;
                 char **paraules3 = tokenizer(t->nom_origen, &n_paraules3, ':');
                 int port= atoi(paraules3[1]);
@@ -694,7 +779,7 @@ AQUI ES PROCESSEN TOTES LES TRAMES A PARTIR DEL TIPUS
                 break;
             case 0x31:
                 /*for (int i =0;i<r->n_envoys;i++){
-                    //mirar el nom del regne del envoy
+                    //mirar el nom del regne del envoy , fase 3 no cal
                 }*/
                 if(strcmp(t->data,"OK")==0){
                     r->envoys[0].ackFitxer=1;
@@ -711,14 +796,15 @@ AQUI ES PROCESSEN TOTES LES TRAMES A PARTIR DEL TIPUS
                     r->envoys[0].ackMD5SUM=1;
                     //printString(1, "Trama MD5 OK rebuda:\n");
                 }else{
+                    resetEnvoy(&r->envoys[0]);
                     r->envoys[0].ackMD5SUM=2;
-                    printString(1, "Trama MD5 KO rebuda:\n");
+                    printString(1, "El md5Sum no ha coincidit.\n");
 
                 }
              
                 break;
             case 0x69:
-                printString(1, "Trama error : NACK  rebuda:\n");
+                //printString(1, "Trama error : NACK  rebuda:\n");
                 
                 break;           
             default:
@@ -727,13 +813,24 @@ AQUI ES PROCESSEN TOTES LES TRAMES A PARTIR DEL TIPUS
         }
     }
 
+/*
 
-int tocaIgnorarTrama(int tipus){
+@brief Funció que comprova si la trama és especial (com ara ACK, NACK, etc.) basant-se en el tipus de trama.
+@param tipus Enter que representa el tipus de trama.
+@return Retorna 1 si la trama és especial, 0 en cas contrari.
+
+*/
+int esTramaEspecial(int tipus){
     if(tipus==0x69 || tipus==0x31 || tipus==0x32 || tipus==0x03){//poden haver-hi mes
         return 1;
     }
     return 0;
 }
+/*
+@brief Funció que comprova el checksum d'una trama.
+@param t Punter a la estructura Trama que conté la informació de la trama.
+@return Retorna 1 si el checksum és correcte, 0 en cas contrari.
+*/
 int comprovarChecksum(Trama *t){
     unsigned short checksumCalculat = calcularChecksum(t);
     if (checksumCalculat != t->checksum) {
@@ -742,6 +839,11 @@ int comprovarChecksum(Trama *t){
     return 1;
 }
 
+/*
+@brief Funció que comprova si la trama indica que s'ha de finalitzar el servidor.
+@param tipus Enter que representa el tipus de trama.
+@return Retorna 1 si s'ha de finalitzar el servidor, 0 en cas contrari.
+*/
 int tocaFinalitzarServidor(int tipus){
     if(tipus==0x27){
         return 1;
@@ -750,6 +852,11 @@ int tocaFinalitzarServidor(int tipus){
 }
 
 
+/*
+@brief Funció que crea el socket del servidor i l'associa al port especificat a la estructura Regne.
+@param r Punter a la estructura Regne que conté la informació del regne actual.
+*/
+
 void creaServer(Regne *r){
     r->fd_server = create_server_socket(r->port);
     if (r->fd_server < 0) {
@@ -757,6 +864,10 @@ void creaServer(Regne *r){
     }
 }
 
+/*
+@brief Funció que gestiona la comunicació amb un client en un thread de servidor.Ve del select a terminal.c o start trade
+@param arg Punter a la estructura ThreadUnServidor que conté la informació del regne i del thread del servidor.
+*/
 void* runServer(void *arg) {
     ThreadUnServidor *tus = (ThreadUnServidor *)arg;
     Regne *r = tus->r;
@@ -778,7 +889,7 @@ void* runServer(void *arg) {
         return NULL;
     }
 
-    if (tocaIgnorarTrama(t->tipus)) {
+    if (esTramaEspecial(t->tipus)) {//trames com acks que si no posem aixo mai trobarien un match del nomDest ja que  els camps estan buits
         processarTrama(t, r, st->client_fd);
         free(t);
         st->thread_complete = 1;
@@ -794,15 +905,34 @@ void* runServer(void *arg) {
         st->thread_complete = 1;
         return NULL;
     }
-    if (strcmp(t->nom_desti, r->nom) == 0) {
+    if (strcmp(t->nom_desti, r->nom) == 0) {// Trama per aquest regne
         processarTrama(t, r, st->client_fd);
         free(t);
     } else {
-        if(t->tipus==0x02){
-            enviarTramaDinamica(t, r, 0);
+        // Forwarding trama(no es per aquest regne , seguent hop)
+        char *nom_origen = strdup(t->nom_origen); 
+        char *nom_desti = strdup(t->nom_desti);
+        int status = -1;
+        if(t->tipus==0x02){//aixo es per que no faci el printf del forwarding 
+            status = enviarTramaDinamica(t, r, 0);// s'allibera dins
         }else{
-        enviarTramaDinamica(t, r, 1); // s'allibera dins
+            status = enviarTramaDinamica(t, r, 1); // s'allibera dins
         }
+
+        if(status == -1){//error , enviar trama ack KO , enviar trama dinamica si no pot enviar retorna -1 
+            //, per tant hem de envair ack KO a origen
+            printString(1, "Error forwarding trama: Realm not found or not allied.\n");
+            char *data;
+            asprintf(&data, "KO&%s", nom_origen);
+            Trama *tramaACKKO = crearTrama(0x31, NULL, 0, NULL, strlen(data), data);
+            free(data);
+            int n_paraules = 0;
+            char **ipPort = tokenizer(nom_origen, &n_paraules, ':');
+            enviarTramaDirecte(tramaACKKO, atoi(ipPort[1]), ipPort[0],nom_desti);
+            freeTokens(ipPort, n_paraules);
+        }
+        free(nom_origen);
+        free(nom_desti);
     }
     st->thread_complete = 1;
     return NULL;

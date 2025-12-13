@@ -8,13 +8,13 @@ $(TARGET): $(SRCS)
 	$(CC) $(CFLAGS) -o $(TARGET) $(SRCS) $(EXTRAFLAGS)
 
 valA: $(TARGET)
-	valgrind --dsymutil=yes --track-origins=yes --leak-check=full --track-fds=yes --show-reachable=yes --show-leak-kinds=all -s ./$(TARGET) A.dat stock.db
+	valgrind --dsymutil=yes --track-origins=yes --leak-check=full --track-fds=yes --show-reachable=yes --show-leak-kinds=all -s ./$(TARGET) A.dat stocka.db
 
 valB: $(TARGET)
 	valgrind --dsymutil=yes --track-origins=yes --leak-check=full --track-fds=yes --show-reachable=yes -s ./$(TARGET) B.dat stockb.db
 
 valC: $(TARGET)
-	valgrind --dsymutil=yes --track-origins=yes --leak-check=full --track-fds=yes --show-reachable=yes -s ./$(TARGET) C.dat stock.db
+	valgrind --dsymutil=yes --track-origins=yes --leak-check=full --track-fds=yes --show-reachable=yes -s ./$(TARGET) C.dat stockc.db
 
 a: $(TARGET)
 	./$(TARGET) A.dat stocka.db

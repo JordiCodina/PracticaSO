@@ -34,23 +34,23 @@ int main (int argc, char *argv[]){
     char *fitxerStock = argv[2];
     if (r == NULL) { 
         printString(1,"Error extracting realm info\n");
-
         return 0; 
     } 
     r->exit = &exitFlag;
     signal(SIGINT, signalHandler);
-
+    //borrar directoris antics si existeixen
     borrarDirectoris(r);
     //iniciar terminal
     runTerminal(r, fitxerStock);
    
-     for(int i=0;i<r->n_fils;i++){
+
+    for(int i=0;i<r->n_fils;i++){
         pthread_join(r->fils[i].thread_id,NULL);
     }
     for(int i=0;i<r->n_serverThreads;){
-            close(r->st[i]->client_fd);
-            pthread_join(r->st[i]->thread_id, NULL);
-            removeThreadServidor(r, i); 
+        close(r->st[i]->client_fd);
+        pthread_join(r->st[i]->thread_id, NULL);
+        removeThreadServidor(r, i); 
     }
 
     close(r->fd_server);

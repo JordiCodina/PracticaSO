@@ -85,12 +85,18 @@ int obrirFitxerSigil(char *rutaSegell) {
     free(filenameSigil);
     return fdSigil;
 }
+/*
+@brief Funció que gestiona l'enviament d'un pledge a un altre regne.
+@param arg Punter a la estructura Thread_pledge que conté la informació necessària per
+               processar el pledge.
 
+*/
 void* pledge(void *arg){
     Thread_pledge *tp = (Thread_pledge *) arg;
     Regne *r = tp->r;
     char **paraules = tp->paraules;
     //comprovar que el regne existeix
+    //printf("r->nom: %s == paraules[1]: %s\n", r->nom, paraules[1]);
     if (!comprovarRegneExisteix(r, paraules[1])) {
         printString(1, "No such realm exists. The pledge is hereby withdrawn. Remember is case sensitive\n");
         freeThreadPledge(tp);
@@ -178,7 +184,14 @@ void* pledge(void *arg){
     close(fd);
     free(filename);
     free(md5);
-
+    if(r->envoys[0].ackFitxer==2){//si hi ha hagut un error enviant la trama 0x01
+        printString(1, "Error sending pledge request. Cannot conect to realm.");
+        r->rutes[indexRuta].alianca='N'; //N de none
+        resetEnvoy(&r->envoys[tp->indexEnvoy]);
+        freeThreadPledge(tp);
+        return NULL;
+    }
+     
     char *buffer = NULL;
     if (asprintf(&buffer, "Pledge sent to %s. Envoy 1 is on its way.\n", paraules[1]) != -1) {
         printString(1, buffer);
@@ -200,6 +213,15 @@ void* pledge(void *arg){
     while (startPos <= size) {
         usleep(2000);
         //usleep(10000);
+
+        if(r->envoys[0].ackFitxer==2){//si hi ha hagut un error enviant la trama 0x02
+            printString(1, "Error sending sigil data. Cannot conect to realm.");
+            r->rutes[indexRuta].alianca='N'; //N de none
+            close(fdSigil);
+            resetEnvoy(&r->envoys[tp->indexEnvoy]);
+            freeThreadPledge(tp);
+            return NULL;
+        }
         if (r->exit && *(r->exit)) {//per si fa control C
             close(fdSigil);
             resetEnvoy(&r->envoys[tp->indexEnvoy]);
@@ -273,6 +295,13 @@ void* pledge(void *arg){
                 
 /*
     PLEDGE RESPOND
+    @brief Funció que gestiona la comanda pledge respond
+
+    @param r Punter a la estructura Regne que conté la informació del regne actual.
+    @param paraules Matriu de cadenes que conté els arguments de la comanda.
+    @param n_paraules Nombre d'elements a la matriu de cadenes.
+
+    
 */
 
 void pledgeRespond(Regne *r, char **paraules, int n_paraules) {
@@ -281,6 +310,7 @@ void pledgeRespond(Regne *r, char **paraules, int n_paraules) {
         printString(1, "Please specify the Realm and response (accept/reject).\n");
         return;
     }
+    //trobar la ruta corresponent
     int trobat = -1;
     for (int i = 0; i < r->n_rutes; i++) {
         if (strcmp(r->rutes[i].nomDest, paraules[2]) == 0) {

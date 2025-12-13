@@ -30,6 +30,7 @@ int create_client_socket(const char *ip, int port) {
     
     return client_sock;
 }
+
 void freeClientConf(ClientConf *conf) {
     if (conf == NULL) return;
     if (conf->ipDest != NULL) {
@@ -50,71 +51,6 @@ void freeClientConf(ClientConf *conf) {
     free(conf);
 }
 
-void *waitAck( void *arg){//no s'utlitza aquesta funcio pero la deixem per si de cas
-   // printf("adreçatlThreadArg: %p<-\n", arg);
-   ThreadLog * tl = (ThreadLog * ) arg;
- //    printf("adreçatlThread: %p<-\n", &tl);
-
-    Trama *response = malloc(sizeof(Trama)); 
-   // printf("Waiting for ack on socket %d\n", tl->socket);
-    read(tl->socket, response, sizeof(Trama)); // Dummy read to avoid compiler warning
-    tl->thread_complete = 1;
-    //return (void *) *response;
-    return response;
-
-}
-
-Trama * waitForRead(double timeout,int socket,int* exitflag) {//no s'utlitza aquest funcio pero la deixem per si de cas
-
-        time_t inici = time(NULL);    
-        int cancelThread=0;
-        ThreadLog tl; 
-        tl.socket = socket;
-        tl.thread_complete = 0;
-        pthread_t waitAckThread;
-
-        pthread_create(&waitAckThread, NULL,waitAck, &tl); 
-       
-        while(1){
-            if(*exitflag==1){
-                cancelThread=1;
-                 pid_t pid = fork();
-                if (pid == 0) {
-                     pthread_kill(waitAckThread, SIGKILL);
-                    _exit(0);   
-                }
-               
-                return NULL;
-            }
-            sleep(1);
-            time_t ara = time(NULL);
-            double diff = difftime(ara, inici);
-           // read(socket, response, sizeof(Trama));//esperem ack
-            if (diff >= timeout ) {                      
-                cancelThread =1;
-                pthread_kill(waitAckThread, SIGKILL);
-                break;
-            }
-            if (tl.thread_complete){
-                break;
-            }
-        }
-        Trama * t= NULL;
-        if (cancelThread == 0)
-        {
-            pthread_join(waitAckThread, (void**)&t);            
-            
-        }else{
-            t = NULL;
-        }
-        
-        return t;
-
-    }
-
-
-
-
  void printMissHopping(ClientConf *conf, char *nomOrg, char *nomDest) {
     char *miss;
     asprintf(&miss,">>> Recived hop with ip:port -> %s to realm name -> %s\n Found route: %s -> %s:%d \n Forwarding PLEDGE request\n", nomOrg, nomDest, conf->nomDest, conf->ipDest,conf->portDest);
@@ -134,6 +70,17 @@ unsigned short calcularChecksum(Trama *t) {
     }
     return (unsigned short)(suma % 65536);
 }
+/*
+@brief Crea una nova trama amb els camps especificats.
+@param tipus El tipus de la trama.
+@param ip La direcció IP de l'origen.)
+@param port El port de l'origen.
+@param nom_desti El nom del destí.
+@param dataLength La longitud de les dades.
+@param data Les dades de la trama.
+@return Punter a la nova trama creada.
+
+*/
 Trama * crearTrama(char tipus, char *ip, int port, char *nom_desti, unsigned short dataLength, char *data) {
 
     Trama * t = malloc (sizeof(Trama));
@@ -152,11 +99,6 @@ Trama * crearTrama(char tipus, char *ip, int port, char *nom_desti, unsigned sho
     } else {
         t->nom_desti[0] = '\0';
     }
-    /*if (data != NULL) {
-        snprintf(t->data, sizeof(t->data), "%s", data);
-    } else {
-        t->data[0] = '\0';
-    }*/
     if (data != NULL) {
         size_t copySize = dataLength;
         if (copySize > sizeof(t->data)) copySize = sizeof(t->data); 
@@ -176,12 +118,7 @@ Trama * crearTrama(char tipus, char *ip, int port, char *nom_desti, unsigned sho
 //aquesta funcio busca la seguent ruta (tant si esta directament conectada com si no i llavors s'ha de fer salt) 
 ClientConf *trobarSeguentMaester(Regne *r, Trama *t) {//si troba ip amb * , agafa default
     int trobat = -1;
-    //int defaultIdx = -1;
     for (int i = 0; i < r->n_rutes; i++) {
-        /*if(strcmp(r->rutes[i].nomDest, "DEFAULT") == 0){
-            defaultIdx = i;
-            printf("Default ")
-        }*/
         if (strcmp(r->rutes[i].nomDest, t->nom_desti) == 0) {
             trobat = i;
             break;
@@ -191,13 +128,6 @@ ClientConf *trobarSeguentMaester(Regne *r, Trama *t) {//si troba ip amb * , agaf
     if (trobat >= 0 && !teCaracter(r->rutes[trobat].ipDest, '*')) {
         idx = trobat;
     }
-   /* if (defaultIdx >= 0) {
-        idx = defaultIdx;
-    }*/
-    /*if(trobat<0 && defaultIdx<0){
-        ClientConf *conf = NULL;
-        return conf;
-    }*/
     ClientConf *conf = malloc(sizeof(ClientConf));
     memset(conf, 0, sizeof(ClientConf));
     if (!conf) {
@@ -212,7 +142,16 @@ ClientConf *trobarSeguentMaester(Regne *r, Trama *t) {//si troba ip amb * , agaf
     return conf;
 }
 
+/*
 
+@brief Envia una trama directament a un destí específic tancant el socket.
+@param t Punter a la trama a enviar.
+@param portDest El port del destí.
+@param ipDest La direcció IP del destí.
+@param nomDest El nom del destí.
+@return Enter que indica l'estat de l'enviament (0 èxit, -1 error).
+
+*/
 int  enviarTramaDirecte(Trama *t,int portDest,char *ipDest, char * nomDest){ 
     ClientConf *conf = malloc(sizeof(ClientConf));
     if (!conf) {
@@ -230,25 +169,15 @@ int  enviarTramaDirecte(Trama *t,int portDest,char *ipDest, char * nomDest){
     return status;
 }
 
- int enviarTramaDinamica(Trama *t, Regne *r, int esHopping) {//esHopping = 1 aixi mostra el print de hopping(aixo nomes usar al server.c)
-    ClientConf *conf = trobarSeguentMaester(r, t);
-    if (!conf) {
-        printString(1, "No s'ha trobat cap ruta per al destí.\n");
-        free(t);
-        return -1;
-    }
-   
-    
-    if(esHopping) {
-        printMissHopping(conf, t->nom_origen, t->nom_desti);
-    }
-    
-    int status = conectarClient_EnviarTrama_FerClose(conf);
-     
-    freeClientConf(conf);
-    return status;
-}
+/*
+@brief Envia una trama directament a un destí específic sense tancar el socket.
+@param t Punter a la trama a enviar.
+@param portDest El port del destí.
+@param ipDest La direcció IP del destí.
+@param nomDest El nom del destí.
+@return Enter que indica el socket utilitzat per l'enviament.
 
+*/
 int  enviarTramaDirecteSenseTancar(Trama *t,int portDest,char *ipDest, char * nomDest){ 
     ClientConf *conf = malloc(sizeof(ClientConf));
     if (!conf) {
@@ -268,6 +197,43 @@ int  enviarTramaDirecteSenseTancar(Trama *t,int portDest,char *ipDest, char * no
     return socket;
 }
 
+/*
+@brief Envia una trama dinamica per hops ,automaticament va a la taula de rutes per trobar la seguent ruta , si no troba doncs default
+@param t Punter a la trama a enviar.
+@param r Punter a la estructura Regne que conté la informació del regne actual.
+@param esHopping Enter que indica si s'ha de mostrar missatge de hopping (1 sí, 0 no).
+
+*/
+ int enviarTramaDinamica(Trama *t, Regne *r, int esHopping) {//esHopping = 1 aixi mostra el print de hopping(aixo nomes usar al server.c)
+    ClientConf *conf = trobarSeguentMaester(r, t);
+    if (!conf) {
+        printString(1, "No s'ha trobat cap ruta per al destí.\n");
+        free(t);
+        return -1;
+    }
+   
+    
+    if(esHopping) {
+        printMissHopping(conf, t->nom_origen, t->nom_desti);
+    }
+    
+    int status = conectarClient_EnviarTrama_FerClose(conf);
+     
+    freeClientConf(conf);
+    return status;
+}
+
+/*
+
+
+@brief Envia una trama a través d'un socket específic.
+@param t Punter a la trama a enviar.
+@param socket El socket a través del qual s'envia la trama.
+
+*/
+
+
+
 void enviarTramaSocket(Trama *t, int socket) {
 
     if(socket < 0 || t == NULL) {
@@ -277,10 +243,13 @@ void enviarTramaSocket(Trama *t, int socket) {
     write(socket, t, sizeof(Trama));
 }
 
-void llegirTramaSocket(int socket, Trama *t) {
-    read(socket, t, sizeof(Trama));
-}
 
+/*
+@brief Crea un socket client basat en la configuració proporcionada.
+@param conf Punter a la configuració del client que conté la informació de la connexió
+@return Enter que indica el descriptor del socket creat (o -1 en cas d'error).
+
+*/
 
 int createClientSocket(ClientConf *conf)
 {
@@ -296,25 +265,15 @@ int createClientSocket(ClientConf *conf)
     }
     return client_sock;
 }
+
 /*
-void writeTrama(int socket, Trama *t){
-    write(socket, t, sizeof(Trama));
-}
-
-void rebreTrama(int socket){
-    Trama *buffer = malloc(sizeof(Trama));
-    if (buffer == NULL) {
-        printString(1, "Error allocating memory for Trama buffer\n");
-        return;
-    }
-    read(socket, buffer, sizeof(Trama));
-    printTrama(*buffer);
-    free(buffer);
-    close(socket);
-}*/
+@brief Conecta al client, envia la trama i tanca el socket.
+@param conf Punter a la configuració del client que conté la informació de la connexió
+@return Enter que indica l'estat de l'enviament (0 èxit, -1 error).
 
 
 
+*/
 int conectarClient_EnviarTrama_FerClose(ClientConf *conf)
 {
   
@@ -327,17 +286,6 @@ int conectarClient_EnviarTrama_FerClose(ClientConf *conf)
         return -1;  
     }
     write(client_sock, conf->trama, sizeof(Trama));
-   /* Trama *response = malloc(sizeof(Trama)); 
-    if (response == NULL) {
-        printString(1, "Error allocating memory for Trama response\n");
-        close(client_sock);
-        return;
-    }
-    read(client_sock, response, sizeof(Trama));
-    printf("Response received:\n");
-    printTrama(*response);
-    free(response);*/
-
     close(client_sock);
     return client_sock;
 
@@ -351,17 +299,6 @@ int conectarClient_EnviarTrama(ClientConf *conf)
         return -1;  
     }
     write(client_sock, conf->trama, sizeof(Trama));
-   // printf("Llegint trama de resposta al client.c\n");
-    /*Trama *response = malloc(sizeof(Trama)); 
-    if (response == NULL) {
-        printString(1, "Error allocating memory for Trama response\n");
-        close(client_sock);
-        return;
-    }
-    read(client_sock,response, sizeof(Trama));
-   printTrama(*response);
-   printf("Socket after reading trama, client.c: %d\n", client_sock);
-    free(response);*/
   
     return client_sock;
 

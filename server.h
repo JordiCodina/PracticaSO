@@ -34,7 +34,6 @@
 #define BUFFER_SIZE 256
 
 
-
  typedef struct {
     Regne *r;          
     ServerThread *st;   
@@ -44,15 +43,12 @@
 int create_server_socket(int port);
 int accept_client_connection(int server_fd);
 
-//Per pledge respond
 void  respondPledge(int res);
 
 void *runServer(void *aregne);
-
 void closeServer(Regne *r);
-
-
 void creaServer(Regne *r);
+
 
 void removeThreadServidor(Regne *r, int index);
 void afegirThread(Regne *r, int comandaN) ;

@@ -346,29 +346,3 @@ void borrarDirectori(char *ruta){
     free(missDir);
 }
 
-/*void crearDirectori(char *ruta){
-    char *missDir;
-    asprintf(&missDir, ".%s", ruta);
-
-    pid_t pid = fork();
-    if (pid == 0) {
-        char *p = missDir;
-        for (char *q = missDir + 1; *q; q++) {
-            if (*q == '/') {
-                *q = '\0';
-                mkdir(p, 0777);
-                *q = '/';
-            }
-        }
-        mkdir(missDir, 0777);
-        _exit(0);
-    } else if (pid > 0) {
-        waitpid(pid, NULL, 0);
-    } else {
-        printString(1, "Fork error\n");
-    }
-
-    free(missDir);
-}*/
-
-
