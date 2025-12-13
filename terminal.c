@@ -77,131 +77,10 @@ char *waitForExit(int *exitflag) {//no s'utlitza aquesta funcio pero la deixem p
     return result;
 }
 
-void afegirthreadServidor(Regne *r, ServerThread *st) {
-    if (r->st == NULL) {
-        r->st = malloc(sizeof(ServerThread*));
-        r->n_serverThreads = 1;
-    } else {
-        r->st = realloc(r->st, (r->n_serverThreads + 1) * sizeof(ServerThread*));
-        r->n_serverThreads++;
-    }
-    r->st[r->n_serverThreads - 1] = st; 
-}
-void removeThreadServidor(Regne *r, int index) {
-    if (r->n_serverThreads <= 0 || index < 0 || index >= r->n_serverThreads) return;
-
-    free(r->st[index]); 
-    for (int i = index; i < r->n_serverThreads - 1; i++) {
-        r->st[i] = r->st[i + 1];
-    }
-    r->n_serverThreads--;
-    if (r->n_serverThreads == 0) {
-        free(r->st);
-        r->st = NULL;
-    } else {
-        r->st = realloc(r->st, r->n_serverThreads * sizeof(ServerThread*));
-    }
-}
-void afegirThread(Regne *r, int comandaN) {
-    if (r->fils == NULL) {
-        r->fils = malloc(sizeof(Fil));
-        r->n_fils = 1;
-    } else {
-        r->fils = realloc(r->fils, (r->n_fils + 1) * sizeof(Fil));
-        r->n_fils++;
-    }
-    r->fils[r->n_fils - 1].comanda = comandaN;
-}
-
-void joinThreadServidor(Regne *r) {
-     for(int i=0;i<r->n_serverThreads;){
-        if(r->st[i]->thread_complete==1){
-            close(r->st[i]->client_fd);
-            pthread_join(r->st[i]->thread_id, NULL);
-            removeThreadServidor(r, i); 
-        } else {
-            i++; 
-        }
-    }
-}
-
-void handleNewConnection(Regne *r, fd_set *master_set, int *max_fd) {
-    int new_socket = accept_client_connection(r->fd_server);
-    if (new_socket < 0) {
-        printString(1, "Error acceptant connexió de client\n");
-        return;
-    }
-    FD_SET(new_socket, master_set);
-    if (new_socket > *max_fd) *max_fd = new_socket;
-    ServerThread *st = malloc(sizeof(ServerThread));
-    st->client_fd = new_socket;
-    st->thread_complete = 0;
-    afegirthreadServidor(r, st);
-}
-
-void readSockets(fd_set *fds_set, Regne *r, int *max_fd) {
-    //accept()
-    if (FD_ISSET(r->fd_server, fds_set)) {
-        handleNewConnection(r, fds_set, max_fd);
-    }
-    //read de clients
-    for (int i = 0; i < r->n_serverThreads; i++) {
-        if (FD_ISSET(r->st[i]->client_fd, fds_set)) {
-            if (r->st[i]->thread_complete == 0) {
-                ThreadUnServidor *tus = malloc(sizeof(ThreadUnServidor));
-                tus->r = r;
-                tus->st = r->st[i];
-
-                if (pthread_create(&r->st[i]->thread_id, NULL, runServer, (void *)tus) != 0) {
-                    printString(1, "Error creant thread\n");
-                    free(tus);
-                }
-            }
-        }
-    }
-}
 
 
-char * escoltarTot(fd_set master_set, int max_fd, Regne *r) {
 
 
-    char *comanda = NULL;
-    fd_set read_set;
-    read_set = master_set;  
-        struct timeval timeout = {1, 0}; //segons , microsegons
-        int select_response = select(max_fd + 1, &read_set, NULL, NULL, &timeout);
-        if (select_response < 0) {
-            return NULL;//!!!!
-        }
-        if (select_response == 0) {//timeout
-            joinThreadServidor(r);
-            return NULL; 
-        }
-        readSockets(&read_set, r, &max_fd);
-        // fd=0
-        if (FD_ISSET(STDIN_FILENO, &read_set)) {
-            comanda = malloc(COM_LEN);
-            int n = read(STDIN_FILENO, comanda, COM_LEN - 1);
-            if (n < 0) {
-
-                printString(1, "$");
-                free(comanda);
-                return NULL; 
-            }
-
-            if (n > 0 && comanda[n - 1] == '\n') comanda[n - 1] = '\0'; 
-            comanda[n] = '\0';
-            size_t len = strlen(comanda);
-            if (len > 0 && comanda[len-1] == '\n') {
-                comanda[len-1] = '\0';
-            }
-            
-             return comanda;
-        }
-    return NULL;
-   
-
-}
 void runTerminal (Regne *r, char *fitxerStock){
     char *comanda = NULL;
     int comandaN = -1;
@@ -210,7 +89,7 @@ void runTerminal (Regne *r, char *fitxerStock){
         return;
     }
     
-    fd_set master_set, read_set;
+    fd_set master_set;/*, read_set;*/
     FD_ZERO(&master_set);
     FD_SET(r->fd_server, &master_set);
     FD_SET(STDIN_FILENO, &master_set);
@@ -222,7 +101,7 @@ void runTerminal (Regne *r, char *fitxerStock){
             comandaN = 7;
             break;
         }
-        comanda = escoltarTot(master_set, max_fd, r);
+        comanda = escoltarTot(&master_set, &max_fd, r);
         if (comanda == NULL) {
             continue;
         }
@@ -303,7 +182,7 @@ void runTerminal (Regne *r, char *fitxerStock){
                         break;
                     } 
 
-                    if(r->envoyTemporalIsBusy == 0){
+                    if(r->envoys[0].status==NULL){
                         Thread_pledge *tp = malloc(sizeof(Thread_pledge));
                         tp->r = r;
                         tp->n_paraules = n_paraules;
@@ -317,7 +196,7 @@ void runTerminal (Regne *r, char *fitxerStock){
                         pthread_create(&r->fils[r->n_fils - 1].thread_id, NULL, pledge, (void *)tp);
                     // pledge (r, paraules);
                     }else{
-                        printString(1, "Envoy is busy.Try again later\n");
+                        printString(1, "Only one pledge may be sworn at a time. Pledge has been withdrawn\n");
                     }
                     
                     break;
@@ -350,7 +229,7 @@ void runTerminal (Regne *r, char *fitxerStock){
                         }
                     }
                     
-                    startTrade(r, comanda, master_set, max_fd);
+                    startTrade(r, comanda, &master_set, &max_fd);
                     break;
                 case 5:
                     if(n_paraules>2){
@@ -382,9 +261,7 @@ void runTerminal (Regne *r, char *fitxerStock){
             free(comanda);
             comanda = NULL;
             joinThreadServidor(r);
-                               
-
-        
+                                  
     }
     exitMs (r);
     notificarDesconnexioAliances(r);

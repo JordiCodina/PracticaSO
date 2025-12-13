@@ -32,7 +32,7 @@ typedef struct {
     char *status;//"lliure=NULL"  "pledge" "pledgeRespond"...
     char *nomRegneViatge;
     int ackFitxer;
-    int ackMD5SUM;  
+    int ackMD5SUM; 
 
 } Envoy;
 /*
@@ -102,13 +102,6 @@ typedef struct  {
 
     ServerThread **st;
     int n_serverThreads;
-
-
-    //char *envoyStatus; //"lliure=NULL"  "pledge" "pledgeRespond"...
-    //int ackFitxer;
-    //int ackMD5SUM;
-    
-    int envoyTemporalIsBusy;//si 1 esta ocupat , si 0 esta lliure //provisional per fase 2
 
 } Regne;
 

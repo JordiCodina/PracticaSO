@@ -19,6 +19,8 @@
 
 
 #define FILENAME_SIGIL_SIZE 100
+#define DATA_SIZE 275
+#define COM_LEN 256
 
 typedef struct Thread_pledge {
     Regne *r;
@@ -50,4 +52,8 @@ void envoyStatus (Regne *r);
 
 void notificarDesconnexioAliances(Regne *r);
 void closeServer(Regne *r);
+
+char *escoltarTot(fd_set *master_set, int *max_fd, Regne *r);
+
+void borrarDirectoris(Regne *r);
 #endif

@@ -37,9 +37,6 @@ void rebreProductes(Regne *r, int socket, Trama *t,int indexAliat) {
         freeTokens(paraules, n_paraules);
         return;
     }
-    key_t semKey = generarClauIPC(t->nom_origen, r->nom, 2);
-    semaphore semRecv;
-    SEM_constructor_with_name(&semRecv, semKey);
     lseek(fd, 0, SEEK_END);
     int bytesRebuts = 0;
     while (bytesRebuts < fileSize) {
@@ -64,7 +61,7 @@ void rebreProductes(Regne *r, int socket, Trama *t,int indexAliat) {
         }
         write(fd, tramaRebuda.data, tramaRebuda.dataLength);
         bytesRebuts += tramaRebuda.dataLength;
-        SEM_signal(&semRecv);
+       // SEM_signal(&semRecv);
     }
     close(fd);
     char *md5 = calcularMD5SUM(fitxerPath);
@@ -87,7 +84,6 @@ void rebreProductes(Regne *r, int socket, Trama *t,int indexAliat) {
     listProductsMaester(fitxerPath,1,r->rutes[indexAliat].nomDest);
 
     free(md5);
-    close(fd);
     free(fitxerPath);
     free(missDir);
     freeTokens(paraules, n_paraules);
@@ -184,9 +180,8 @@ void listProductsMaesterAliat(Producte *p, int n,char *nomAliat) {
     for (int i = 0; i < n; i++) {
         asprintf(&miss2, "%d. %s (%d units)\n", i + 1, p[i].name, p[i].amount);
         printString(1, miss2);
-        
+        free(miss2);
     }
-    free(miss2);
 }
 
 
@@ -225,30 +220,39 @@ void listProductsMaester(char *nomFitxer, int opcio,char * nomAliat) {
 /*
 START TRADE
 */
-void sendCompra(char* nomRegneDest, char *nomMaester, Producte *productes, int numProductes, char *rutaArxius) {
+
+char* crearRutaComanda(char * rutaArxius, char * nomMaester, char * nomRegneDest){
+        char *nomFitxer;
+        asprintf(&nomFitxer, ".%s/%s-_%s-_commands.txt", rutaArxius, nomMaester, nomRegneDest);
+        return nomFitxer;
+    }
+int crearFitxerComandes(char *nomFitxer){
+        
+        int fd = open(nomFitxer, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        if (fd == -1) {
+            printString(1, "Error opening trade file\n");
+            return -1;
+        }
+        return fd;
+    }
+
+void sendCompra(char* nomRegneDest, char *nomMaester, Producte *productes, int numProductes, char *rutaArxius, Regne *r) {
     if (!nomRegneDest || !nomMaester || !productes || numProductes <= 0) {
         printString(1, "Cannot send trade: missing information\n");
         return;
     }
-    char *missDir; 
-    asprintf(&missDir, ".%s", rutaArxius); 
-    pid_t pid = fork();
-    if (pid == 0) {
-        execlp("mkdir", "mkdir", "-p", missDir, (char*)NULL);
-        _exit(1);
-    } else if (pid > 0) {
-        waitpid(pid, NULL, 0);
-    } else {
-        printString(1, "Fork error\n");
-        free(missDir);
-        return;
+    int indexRuta=-1;
+    for (int i=0;i<r->n_rutes;i++){
+        if(strcmp(r->rutes[i].nomDest,nomRegneDest)==0){            
+            indexRuta=i;
+            break;
+        }
     }
-    free(missDir);
+    crearDirectori(r->rutaArxius);
     char *nomFitxer;
-    asprintf(&nomFitxer, ".%s/Trade_%s-_%s-.txt", rutaArxius, nomMaester, nomRegneDest);
-    int fd = open(nomFitxer, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-    if (fd == -1) {
-        printString(1, "Error opening trade file\n");
+    nomFitxer=crearRutaComanda(rutaArxius, nomMaester,nomRegneDest);
+    int fd=crearFitxerComandes(nomFitxer);
+    if(fd==-1){
         free(nomFitxer);
         return;
     }
@@ -258,10 +262,145 @@ void sendCompra(char* nomRegneDest, char *nomMaester, Producte *productes, int n
         write(fd, miss2, strlen(miss2)); 
         free(miss2); 
     } 
+    
+    close(fd);
+    int fdList=open(nomFitxer, O_RDONLY);
+    if(fdList==-1){
+        printString(1, "Error opening trade file to read\n");
+        free(nomFitxer);
+        return;
+    }
+
+    int size=getSize(fdList);
+    char *md5 = calcularMD5SUM(nomFitxer);
+
+
+    char data[275];
+    snprintf(data, sizeof(data), "%s&%d&%s", nomFitxer, size, md5);
+    free(md5);
+  
+    Trama *tramaPeticioComanda=crearTrama(0x14,r->ip , r->port, nomRegneDest, strlen(data), data);
+    int socket=enviarTramaDirecteSenseTancar(tramaPeticioComanda, r->rutes[indexRuta].portDest, r->rutes[indexRuta].ipDest, nomRegneDest);//el free de trama es fa aqui dintre
+    if(socket<0){
+        printString(1, "Error sending trade request to ally. Probably is disconnected.\n");
+        close(fdList);
+        free(nomFitxer);
+        return;
+    }
+    
+    Trama * ackPeticioComanda=crearTrama(0, NULL, 0, NULL, 0, NULL);
+    int n=read(socket, ackPeticioComanda, sizeof(Trama));
+    if(n<=0){
+        free(ackPeticioComanda);
+        printString(1, "Did not receive ACK/NACK for trade request.\n");
+        close(fdList);
+        free(nomFitxer);
+        close(socket);
+        return;
+    }
+    if (ackPeticioComanda->tipus != 0x31) {  
+        printString(1, "Trade request denied by ally.\n");
+        close(fdList);
+        free(nomFitxer);
+        free(ackPeticioComanda);
+        return;
+    }
+    free(ackPeticioComanda);
+
+        char *listData;
+        printString(1, "Sending list ...\n"); 
+        int  startPos = 0;
+        Trama *trama=NULL;
+        while(startPos<=size){
+            usleep(5000);
+            if (r->exit && *(r->exit)) {
+                
+                    return;
+            }
+            if(startPos+275>size){
+                 
+                listData=readFd(fdList,startPos,size-startPos);
+                trama = crearTrama(0x15, r->ip, r->port, r->rutes[indexRuta].nomDest , size-startPos,listData);
+
+            }else{
+                listData=readFd(fdList,startPos,275);
+                trama = crearTrama(0x15, r->ip, r->port, r->rutes[indexRuta].nomDest , 275,listData);
+            }
+            enviarTramaSocket(trama,socket);
+            free(trama);
+            startPos+=275;
+
+            free(listData);
+            
+        }
+        close(fdList);
+        int n4=read(socket, tramaPeticioComanda, sizeof(Trama));
+        if(n4<=0){
+            free(tramaPeticioComanda);
+            printString(1, "Did not receive ACK/NACK for trade list.\n");
+            free(nomFitxer);
+            close(socket);
+            return;
+        }
+        if (tramaPeticioComanda->tipus != 0x32 || strcmp(tramaPeticioComanda->data,"CHECK_OK")!=0) {  
+            printString(1, "MD5 checksum does not match for trade list.\n");
+            free(tramaPeticioComanda);
+            free(nomFitxer);
+            close(socket);
+            return;
+        }
+        printString(1, "List sent.\n");
     char *miss; 
     asprintf(&miss,"Trade list sent to %s\n",nomRegneDest); printString(1,miss); free(miss);
+    //LLEGEIR TRAMA 0X16
+    Trama *tramaConfirmacioComanda=crearTrama(0, NULL, 0, NULL, 0, NULL);
+    int n2=read(socket, tramaConfirmacioComanda, sizeof(Trama));
+    if(n2<=0){
+        close(fdList);
+        free(nomFitxer);
+        free(tramaConfirmacioComanda);
+        close(socket);
 
+        return;
+    }
+    if(tramaConfirmacioComanda->tipus==0x16){
+        //aqui actualitzem el stock si la comanda ha anat be
+        if(strcmp(tramaConfirmacioComanda->data,"OK")==0){
+            char *nomStock;
+            asprintf(&nomStock, "stock%s.db", r->nom);
+            int n_stock = 0;
+
+            int fdProductes = open(nomStock, O_RDONLY);
+            if (fdProductes < 0) {
+                printString(1, "Error opening stock file to read\n");
+                free(nomStock);
+                free(tramaConfirmacioComanda);
+                close(socket);
+                return;
+            }
+            Producte *stock = extreureProductes(fdProductes, &n_stock);
+            close(fdProductes);
+            for (int i = 0; i < numProductes; i++) {
+                afegirAlStock(stock, &n_stock,productes[i].name,productes[i].amount,0);
+            }
+            actualitzarProductes(nomStock, stock, n_stock);
+            free(stock);
+            free(nomStock);
+            printString(1, "Order accepted by TheVale. Stock updated.\n");
+        }
+        else if(strcmp(tramaConfirmacioComanda->data,"REJECT&OUT_OF_STOCK")==0){
+            printString(1, "Trade failed. One or more products are out of stock.\n");
+        }
+        else if(strcmp(tramaConfirmacioComanda->data,"REJECT&UNKNOWN_PRODUCT")==0){
+            printString(1, "Trade failed. Unknown product in the list.\n");
+        }else{
+            printString(1, "Trade failed. Unknown error.\n");
+        }
+
+    }
+    free(tramaConfirmacioComanda);
     close(fd);
+    close(socket);
     free(nomFitxer);
 }
 
@@ -363,7 +502,8 @@ void removeProducteTrade(Producte **productes, int *numProductes, char *nomProdu
 }
 
 
-void startTrade(Regne * regneActual, char* comand, fd_set master_set, int max_fd) {
+void startTrade(Regne *regneActual, char *comand, fd_set *master_set, int *max_fd) {
+    
     
     int areTrading = 1;
    
@@ -374,18 +514,55 @@ void startTrade(Regne * regneActual, char* comand, fd_set master_set, int max_fd
 
      int n_paraules = 0;
     char **paraules = tokenizer(comand, &n_paraules,' ');
+   
+    int esAliat=0;
+    for(int i=0 ;i<regneActual->n_rutes;i++){
+        if(strcmp(regneActual->rutes[i].nomDest,paraules[2])==0){
+            if(regneActual->rutes[i].alianca=='S'){
+                esAliat=1;
+                break;
+            }
+        }
+    }
+    if(!esAliat){
+        printString(1, "You are not allied with this Realm or its inactive.\n");
+        freeTokens(paraules, n_paraules);
+        return;
+    }
+
+
     Producte *productes = NULL;
     char *miss;
     Producte *productesDisponibles = NULL;
-    int n_productesDisponibles = 5;
+    int n_productesDisponibles = 0;
     
-
     char *nomRegneDest = strdup(paraules[2]);
     asprintf(&miss, "Entering trade mode with %s\n", nomRegneDest);
     printString(1, miss);
     free(miss);
-    productesDisponibles = crearProductesProvisionals(n_productesDisponibles);//provisional
-    mostrarProductesCompra(productesDisponibles, n_productesDisponibles);
+
+    //listProductsAliat(regneActual, nomRegneDest);
+    char*missDir;
+    asprintf(&missDir, "./%s/stock%s.db",regneActual->nom,nomRegneDest);
+    int fdFitxerProductes = open(missDir, O_RDONLY);
+    if (fdFitxerProductes == -1) {
+        printString(1, "No products available . Use LIST PRODUCTS first.\n");
+        free(nomRegneDest);
+        freeTokens(paraules, n_paraules);
+        return;
+    }
+    free(missDir);
+    productesDisponibles = extreureProductes(fdFitxerProductes, &n_productesDisponibles);
+    listProductsMaesterAliat(productesDisponibles, n_productesDisponibles, nomRegneDest);
+    if (productesDisponibles == NULL || n_productesDisponibles == 0) {
+        printString(1, "No products available . Use LIST PRODUCTS first.\n");
+        close(fdFitxerProductes);
+        
+        free(nomRegneDest);
+        freeTokens(paraules, n_paraules);
+        return;
+    } 
+    //mostrarProductesCompra(productesDisponibles, n_productesDisponibles);
     freeTokens(paraules, n_paraules);
     printString(1,"Trade> ");
     do{
@@ -404,24 +581,12 @@ void startTrade(Regne * regneActual, char* comand, fd_set master_set, int max_fd
         if (comandaTrade == NULL) {
             continue;
         }
-       
-        printf("comandaTrade: %d\n", strlen(comandaTrade));
-
-
-         printString(1, "111111111111111111\n");
-
-        printString(1, "22222222222222\n");
-        //removeFirstEnter(&comandaTrade, 100);
-        printf("Trade command received: %s\n", comandaTrade);
-        printString(1, "-------------------\n");
         
         char **paraulesTrade = tokenizer(comandaTrade, &n_paraules,' ');
-        
-        printString(1, "3333333333333333\n");
         if(n_paraules==0){
             freeTokens(paraulesTrade, n_paraules);
             free(comandaTrade);
-
+            printString(1,"Trade> ");
             continue;
         }
         if (strcasecmp (paraulesTrade[0], "add") == 0){
@@ -438,6 +603,7 @@ void startTrade(Regne * regneActual, char* comand, fd_set master_set, int max_fd
         } else {
             printString(1, "Invalid command\n");
             freeTokens(paraulesTrade, n_paraules);
+            printString(1,"Trade> ");
             continue;
         }
 
@@ -445,6 +611,7 @@ void startTrade(Regne * regneActual, char* comand, fd_set master_set, int max_fd
             case 0: //add
                 if (n_paraules < 3) {
                     printString(1, "add <product_name> <quantity>\n");
+                    
                     break;
                 }
                 nomProducte[0] = '\0';
@@ -482,7 +649,7 @@ void startTrade(Regne * regneActual, char* comand, fd_set master_set, int max_fd
                 break;
 
             case 2: //send
-                sendCompra(nomRegneDest, regneActual->nom, productes, numProductes, regneActual->rutaArxius);
+                sendCompra(nomRegneDest, regneActual->nom, productes, numProductes, regneActual->rutaArxius, regneActual);
                 areTrading = 0;
                 break;
 
@@ -495,8 +662,8 @@ void startTrade(Regne * regneActual, char* comand, fd_set master_set, int max_fd
 
         freeTokens(paraulesTrade, n_paraules);
         free(comandaTrade);
-        if (areTrading) {
-            printString(1,"Trade> ");
+        if(areTrading){
+        printString(1,"Trade> ");
         }
     } while(areTrading);
     free(nomRegneDest);
@@ -507,15 +674,52 @@ void startTrade(Regne * regneActual, char* comand, fd_set master_set, int max_fd
 
 
 
+int treureDelStock(Producte *productes, int *n_productes, const char *nom, int quantitat) {
+    for (int i = 0; i < *n_productes; i++) {
+        if (strcmp(productes[i].name, nom) == 0) {
+            if (productes[i].amount < quantitat)
+                return 0;
+                 printf("Product %s amount: %d\n", productes[i].name, productes[i].amount);
+            productes[i].amount -= quantitat;
+            printf("Product %s new amount: %d\n", productes[i].name, productes[i].amount);
+            if (productes[i].amount <= 0) {
+                for (int j = i; j < *n_productes - 1; j++)
+                    productes[j] = productes[j + 1];
+                (*n_productes)--;
+            }
+            return 1; 
+        }
+    }
+    return -1; 
+}
+
+
+void afegirAlStock(Producte *productes, int *n_productes,const char *nom, int quantitat, float pes){
+    for (int i = 0; i < *n_productes; i++) {
+
+        if (strcmp(productes[i].name, nom) == 0) {
+            productes[i].amount += quantitat;
+            return; // ja està
+        }
+    }
+    strncpy(productes[*n_productes].name, nom, sizeof(productes[*n_productes].name));
+    productes[*n_productes].name[sizeof(productes[*n_productes].name) - 1] = '\0';
+
+    productes[*n_productes].amount = quantitat;
+    productes[*n_productes].weight = pes;
+    (*n_productes)++;
+}
+
 //no borrar , no cal per fase 1
-/*void actualitzarProductes(char *nomFitxer, Producte *productes, int n_productes){
+void actualitzarProductes(char *nomFitxer, Producte *productes, int n_productes){
     int f = open (nomFitxer, O_WRONLY | O_TRUNC | O_CREAT, 0644);
     if (f == -1){
         printString(1, "Error opening product file\n");
         return;
     }
-    for (int i = 0; i < n_productes; i++){
+    for (int i = 0; i < n_productes; i++){  
+        memset(&productes[i], 0, sizeof(Producte));
         write (f, &(productes[i]), sizeof(Producte));
     }
     close(f);
-}*/
+}

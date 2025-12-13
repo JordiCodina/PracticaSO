@@ -168,9 +168,6 @@ void initializeRegne (Regne *r){
     r->n_serverThreads = 0;
 
 
-    r->envoyTemporalIsBusy = 0;//borrar per fase 3
-
-
 }
 
 /*
@@ -393,6 +390,7 @@ void cpyProducte (Producte *dest, Producte *org){
 }
 Producte *extrureProducte(int f) {
     Producte *p= malloc(sizeof(Producte));
+    memset(p, 0, sizeof(Producte));
     int size = read(f, p, sizeof(Producte));
     if(!size){
         free(p);

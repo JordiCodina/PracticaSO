@@ -27,4 +27,6 @@ char * waitForExit(int *exitflag);//no s'utlitza aquesta funcio pero la deixem p
 void runTerminal(Regne *r, char *fitxerStock);
 
 
+
+
 #endif

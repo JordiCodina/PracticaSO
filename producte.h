@@ -19,7 +19,14 @@
 //comandes
 void listProductsMaester(char *nomFitxer, int opcio,char * nomAliat) ;
 void listProductsAliat(Regne *r, char *nomAliat);
-void startTrade(Regne * regneActual, char* comand, fd_set master_set, int max_fd) ;
+void startTrade(Regne *r, char *comand, fd_set *master_set, int *max_fd) ;
 
+
+char* crearRutaComanda(char * rutaArxius, char * nomMaester, char * nomRegneDest);
+int crearFitxerComandes(char *nomFitxer);
+
+void actualitzarProductes(char *nomFitxer, Producte *productes, int n_productes);
+int treureDelStock(Producte *productes, int *n_productes, const char *nom, int quantitat) ;
+void afegirAlStock(Producte *productes, int *n_productes,const char *nom, int quantitat, float pes) ;
 
 #endif

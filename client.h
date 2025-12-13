@@ -28,7 +28,7 @@
 #define DATA_SIZE 275
 typedef struct {
     unsigned char tipus;               
-    char nom_origen[20];  // ip+port          
+    char nom_origen[20];  // ip:port          
     char nom_desti[20];         
     unsigned short dataLength;          
     char data[DATA_SIZE];          

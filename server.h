@@ -53,4 +53,9 @@ void closeServer(Regne *r);
 
 
 void creaServer(Regne *r);
+
+void removeThreadServidor(Regne *r, int index);
+void afegirThread(Regne *r, int comandaN) ;
+void joinThreadServidor(Regne *r) ;
+void afegirthreadServidor(Regne *r, ServerThread *st);
 #endif

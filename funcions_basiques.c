@@ -308,12 +308,67 @@ char * calcularMD5SUM(const char *filepath) {
     return md5;
 }
 
-key_t generarClauIPC(char *regneOG,char*regneDest,int comanda) {//1 segell 2 fitxer prod 3compra
-    
-    char keyString[256];
-    snprintf(keyString, sizeof(keyString), "%s_%s_%d", regneOG, regneDest, comanda);
-    key_t key = ftok(keyString, comanda);
-    return key;
+
+void crearDirectori(char *ruta){
+    char *missDir; 
+    asprintf(&missDir, ".%s", ruta); 
+    pid_t pid = fork();
+    if (pid == 0) {
+        execlp("mkdir", "mkdir", "-p", missDir, (char*)NULL);
+        _exit(1);
+    } else if (pid > 0) {
+        waitpid(pid, NULL, 0);
+    } else {
+        printString(1, "Fork error\n");
+        free(missDir);
+        return;
+    }
+    free(missDir);
 }
+
+
+void borrarDirectori(char *ruta){
+    char *missDir;
+    asprintf(&missDir, ".%s", ruta);
+
+    pid_t pid = fork();
+    if (pid == 0) {
+        execlp("rm", "rm", "-rf", missDir, (char*)NULL);
+        _exit(1);
+    } else if (pid > 0) {
+        waitpid(pid, NULL, 0);
+    } else {
+        printString(1, "Fork error\n");
+        free(missDir);
+        return;
+    }
+
+    free(missDir);
+}
+
+/*void crearDirectori(char *ruta){
+    char *missDir;
+    asprintf(&missDir, ".%s", ruta);
+
+    pid_t pid = fork();
+    if (pid == 0) {
+        char *p = missDir;
+        for (char *q = missDir + 1; *q; q++) {
+            if (*q == '/') {
+                *q = '\0';
+                mkdir(p, 0777);
+                *q = '/';
+            }
+        }
+        mkdir(missDir, 0777);
+        _exit(0);
+    } else if (pid > 0) {
+        waitpid(pid, NULL, 0);
+    } else {
+        printString(1, "Fork error\n");
+    }
+
+    free(missDir);
+}*/
 
 

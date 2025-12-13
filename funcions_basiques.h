@@ -9,6 +9,9 @@
 #include <stdio.h>
 #include <signal.h>
 #include <errno.h>
+#include <sys/wait.h>
+
+
 
 
 #define BUF_SIZE 256
@@ -74,4 +77,9 @@ char * calcularMD5SUM(const char *filepath) ;
 char* llegirComanda(int *exitflag) ;
 
 char* readFd(int fd,int startPos, int size);
+
+
+void crearDirectori(char *ruta);
+void borrarDirectori(char *ruta);
+ 
 #endif
