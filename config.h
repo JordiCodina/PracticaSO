@@ -115,6 +115,8 @@ void freeRuta(Ruta r);
 
 void freeRegne(Regne *r);
 
+
+
 //funcions d'inicialitzar els strucs
 
 void initializeEnvoy (Envoy *e);
@@ -122,6 +124,8 @@ void initializeEnvoy (Envoy *e);
 void initializeRuta (Ruta *r);
 
 void initializeRegne (Regne *r);
+
+
 
 //funcions per copiar els structs 
 
@@ -133,20 +137,53 @@ void regneCpy (Regne *dest, Regne* org);
 
 void cpyProducte (Producte *dest, Producte *org);
 
-//funcions per extreure la informació dels fitxers
-Regne *extractInfo (const char *nomFitxer);
 
-Producte *extreureProductes(int fProductes, int *n_productes);
 
+//funcions de envoy
+
+/*
+@brief Posa un estatus a un envoy
+@param *e el envoy
+@param *text el estatus que volem posar
+*/
+
+void setStatusEnvoy(Envoy *e, const char *text);
+
+/*
+@brief reseteja un evoy
+@param *e el envoy a resetejar
+*/
+
+void resetEnvoy(Envoy *e) ;
+
+
+
+/*
+@brief Mira si un Maester existeix
+@param *r el teu regne
+@param *nomRegneRuta el Maester que volem saber si existeix
+@return 0 = No existeix, 1 = existeix
+*/
 
 int comprovarRegneExisteix(Regne *r, char * nomRegneRuta);
 
+//funcions per extreure la informació dels fitxers
 
-//void afegirAck(Ruta *r, int status, int tipus, const char *ordre, const char *nomRegneOrg);
+/*
+@brief Posa l'informació que troba en el fitxer .dat 
+@param nomFitxer el nom del fitxer de configuració
+@return Regne el regne amb tot.
+*/
 
-//void eliminarAck(Ruta *r, Ack *a);
+Regne *extractInfo (const char *nomFitxer);
 
-void setStatusEnvoy(Envoy *e, const char *text);
-void resetEnvoy(Envoy *e) ;
+/*
+@brief Extreu tots els productes
+@param fProductes el file descriptor del fitxer
+@param *n_productes punter a la quantitat de productes
+@return Producte* punter als productes
+*/
+
+Producte *extreureProductes(int fProductes, int *n_productes);
 
 #endif

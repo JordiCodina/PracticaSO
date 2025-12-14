@@ -51,13 +51,13 @@ void freeClientConf(ClientConf *conf) {
     free(conf);
 }
 
- void printMissHopping(ClientConf *conf, char *nomOrg, char *nomDest) {
+void printMissHopping(ClientConf *conf, char *nomOrg, char *nomDest) {
     char *miss;
     asprintf(&miss,">>> Recived hop with ip:port -> %s to realm name -> %s\n Found route: %s -> %s:%d \n Forwarding PLEDGE request\n", nomOrg, nomDest, conf->nomDest, conf->ipDest,conf->portDest);
     printString(1, miss);
     free(miss);
 
- }
+}
 
 unsigned short calcularChecksum(Trama *t) {
     unsigned long suma = 0;  
@@ -79,7 +79,6 @@ unsigned short calcularChecksum(Trama *t) {
 @param dataLength La longitud de les dades.
 @param data Les dades de la trama.
 @return Punter a la nova trama creada.
-
 */
 Trama * crearTrama(char tipus, char *ip, int port, char *nom_desti, unsigned short dataLength, char *data) {
 
@@ -143,15 +142,14 @@ ClientConf *trobarSeguentMaester(Regne *r, Trama *t) {//si troba ip amb * , agaf
 }
 
 /*
-
 @brief Envia una trama directament a un destí específic tancant el socket.
 @param t Punter a la trama a enviar.
 @param portDest El port del destí.
 @param ipDest La direcció IP del destí.
 @param nomDest El nom del destí.
 @return Enter que indica l'estat de l'enviament (0 èxit, -1 error).
-
 */
+
 int  enviarTramaDirecte(Trama *t,int portDest,char *ipDest, char * nomDest){ 
     ClientConf *conf = malloc(sizeof(ClientConf));
     if (!conf) {
@@ -176,8 +174,8 @@ int  enviarTramaDirecte(Trama *t,int portDest,char *ipDest, char * nomDest){
 @param ipDest La direcció IP del destí.
 @param nomDest El nom del destí.
 @return Enter que indica el socket utilitzat per l'enviament.
-
 */
+
 int  enviarTramaDirecteSenseTancar(Trama *t,int portDest,char *ipDest, char * nomDest){ 
     ClientConf *conf = malloc(sizeof(ClientConf));
     if (!conf) {
@@ -202,9 +200,9 @@ int  enviarTramaDirecteSenseTancar(Trama *t,int portDest,char *ipDest, char * no
 @param t Punter a la trama a enviar.
 @param r Punter a la estructura Regne que conté la informació del regne actual.
 @param esHopping Enter que indica si s'ha de mostrar missatge de hopping (1 sí, 0 no).
-
 */
- int enviarTramaDinamica(Trama *t, Regne *r, int esHopping) {//esHopping = 1 aixi mostra el print de hopping(aixo nomes usar al server.c)
+
+int enviarTramaDinamica(Trama *t, Regne *r, int esHopping) {//esHopping = 1 aixi mostra el print de hopping(aixo nomes usar al server.c)
     ClientConf *conf = trobarSeguentMaester(r, t);
     if (!conf) {
         printString(1, "No s'ha trobat cap ruta per al destí.\n");
@@ -224,15 +222,10 @@ int  enviarTramaDirecteSenseTancar(Trama *t,int portDest,char *ipDest, char * no
 }
 
 /*
-
-
 @brief Envia una trama a través d'un socket específic.
 @param t Punter a la trama a enviar.
 @param socket El socket a través del qual s'envia la trama.
-
 */
-
-
 
 void enviarTramaSocket(Trama *t, int socket) {
 
@@ -243,12 +236,10 @@ void enviarTramaSocket(Trama *t, int socket) {
     write(socket, t, sizeof(Trama));
 }
 
-
 /*
 @brief Crea un socket client basat en la configuració proporcionada.
 @param conf Punter a la configuració del client que conté la informació de la connexió
 @return Enter que indica el descriptor del socket creat (o -1 en cas d'error).
-
 */
 
 int createClientSocket(ClientConf *conf)
@@ -270,10 +261,8 @@ int createClientSocket(ClientConf *conf)
 @brief Conecta al client, envia la trama i tanca el socket.
 @param conf Punter a la configuració del client que conté la informació de la connexió
 @return Enter que indica l'estat de l'enviament (0 èxit, -1 error).
-
-
-
 */
+
 int conectarClient_EnviarTrama_FerClose(ClientConf *conf)
 {
   

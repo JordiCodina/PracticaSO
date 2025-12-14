@@ -21,9 +21,6 @@
 #define INVALID_INPUT "Entrada inválida. Solo se puede introducir una letra\n"
 #define USAGE "Uso: ./client <ip> <puerto>\n"
 
-
-
-
 #define FRAME_SIZE 320
 #define DATA_SIZE 275
 typedef struct {
@@ -51,24 +48,78 @@ typedef struct _ThreadLog {//no sutiltiza pero ho deixem temporalment per si de 
 } ThreadLog;
 
 
-void freeClientConf(ClientConf *conf);
+//int create_client_socket(const char *ip, int port);
+
+//void freeClientConf(ClientConf *conf);
+
+//void printMissHopping(ClientConf *conf, char *nomOrg, char *nomDest);
+
+//unsigned short calcularChecksum(Trama *t);
+
+/*
+@brief Crea una nova trama amb els camps especificats.
+@param tipus El tipus de la trama.
+@param ip La direcció IP de l'origen.)
+@param port El port de l'origen.
+@param nom_desti El nom del destí.
+@param dataLength La longitud de les dades.
+@param data Les dades de la trama.
+@return Punter a la nova trama creada.
+*/
 
 Trama * crearTrama(char tipus,char *ip,int port,char *nom_desti,unsigned short dataLength,char *data);
-unsigned short calcularChecksum(Trama *t);
 
+//aquesta funcio busca la seguent ruta (tant si esta directament conectada com si no i llavors s'ha de fer salt) 
 
 ClientConf *trobarSeguentMaester(Regne *r, Trama *t);
 
-int enviarTramaDinamica(Trama *t, Regne *r, int esHopping) ;//aixo es mes per si hi ha un possible hopping 
+/*
+@brief Envia una trama directament a un destí específic tancant el socket.
+@param t Punter a la trama a enviar.
+@param portDest El port del destí.
+@param ipDest La direcció IP del destí.
+@param nomDest El nom del destí.
+@return Enter que indica l'estat de l'enviament (0 èxit, -1 error).
+*/
+
 int enviarTramaDirecte(Trama *t,int portDest,char *ipDest, char * nomDest);//enviament directe sense hopping si saps ja tot
+
+/*
+@brief Envia una trama directament a un destí específic sense tancar el socket.
+@param t Punter a la trama a enviar.
+@param portDest El port del destí.
+@param ipDest La direcció IP del destí.
+@param nomDest El nom del destí.
+@return Enter que indica el socket utilitzat per l'enviament.
+*/
+
 int  enviarTramaDirecteSenseTancar(Trama *t,int portDest,char *ipDest, char * nomDest);
+
+/*
+@brief Envia una trama dinamica per hops ,automaticament va a la taula de rutes per trobar la seguent ruta , si no troba doncs default
+@param t Punter a la trama a enviar.
+@param r Punter a la estructura Regne que conté la informació del regne actual.
+@param esHopping Enter que indica si s'ha de mostrar missatge de hopping (1 sí, 0 no).
+*/
+
+int enviarTramaDinamica(Trama *t, Regne *r, int esHopping) ;//aixo es mes per si hi ha un possible hopping 
+
+/*
+@brief Envia una trama a través d'un socket específic.
+@param t Punter a la trama a enviar.
+@param socket El socket a través del qual s'envia la trama.
+*/
+
 void  enviarTramaSocket(Trama *t, int socket) ;
 
-int create_client_socket(const char *ip, int port);
+/*
+@brief Conecta al client, envia la trama i tanca el socket.
+@param conf Punter a la configuració del client que conté la informació de la connexió
+@return Enter que indica l'estat de l'enviament (0 èxit, -1 error).
+*/
 
 int conectarClient_EnviarTrama_FerClose(ClientConf *conf);
+
 int conectarClient_EnviarTrama(ClientConf *conf);
 
-
-void printMissHopping(ClientConf *conf, char *nomOrg, char *nomDest);
 #endif

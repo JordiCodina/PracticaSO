@@ -60,26 +60,77 @@ char substrCmp (char *str, int start, int end, char *str2);
 
 void removeFirstEnter (char (*str) [], int size);
 
+/*
+    funcio per alliberar un array d'arrays
+*/
 
 void freeTokens (char **paraules, int n_paraules);
+
+/*
+@brief Agafa un buffer i ho divideix en tokens
+@param *buffer el buffer
+@param *n_paraules punter que tindrà el número de paraules
+@param sep el caracter que separarà les paraules
+@return char** els tokens
+*/
+
 char **tokenizer (char *buffer, int *n_paraules, char sep);
+
+/*
+    funcio que printa un array d'arrays
+*/
+
 void printTokens (char **paraules, int n_paraules);
 
+/*
+    funcio que comprova si un string es un número
+*/
 
 int comprovarSiNumero(char *str);
+
+
 int teCaracter(char *str, char c);
+
+/*
+    funcio que elimina un caracter de un string
+*/
+
 void eliminarCaracter(char *str, char c);
 
+/*
+    funcio que et diu la mida d'un fitxer
+*/
 
 int getSize(int fd);
 
-char * calcularMD5SUM(const char *filepath) ;
-char* llegirComanda(int *exitflag) ;
+/*
+@brief Extreu una part d'un fitxer
+@param fd el file descriptor del fitxer
+@param startPos la posició de on llegirem
+@param size la mida del que llegirem
+@return char* el que hem llegir
+*/
 
 char* readFd(int fd,int startPos, int size);
 
+/*
+@brief calcula el MD5SUM d'un fitxer
+@param *filepath el nom del fitxer
+@return char* el MD5SUM
+*/
+
+char * calcularMD5SUM(const char *filepath);
+
+/*
+    Aquesta funcio crea un directori
+*/
 
 void crearDirectori(char *ruta);
+
+/*
+    Aquesta funcio borra un directori
+*/
+
 void borrarDirectori(char *ruta);
  
 #endif

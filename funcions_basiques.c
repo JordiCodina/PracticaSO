@@ -107,8 +107,9 @@ void removeFirstEnter (char (*str) [], int size){
     }
 }
 
-
-
+/*
+    funcio per alliberar un array d'arrays
+*/
 
 void freeTokens (char **paraules, int n_paraules){
 
@@ -116,18 +117,13 @@ void freeTokens (char **paraules, int n_paraules){
     free(paraules);
 }
 
-void printTokens (char **paraules, int n_paraules){
-
-    printString(1, "paraules:\n");
-
-    for (int i = 0; i < n_paraules; i++){
-
-        char *buffer;
-        asprintf(&buffer, "\t[%s]\n", paraules[i]);
-        printString(1,buffer);
-        free(buffer);
-    }
-}
+/*
+@brief Agafa un buffer i ho divideix en tokens
+@param *buffer el buffer
+@param *n_paraules punter que tindrà el número de paraules
+@param sep el caracter que separarà les paraules
+@return char** els tokens
+*/
 
 char **tokenizer (char* buffer, int *n_paraules,char sep){
 
@@ -167,32 +163,60 @@ char **tokenizer (char* buffer, int *n_paraules,char sep){
     return paraules;
 }
 
+/*
+    funcio que printa un array d'arrays
+*/
+
+void printTokens (char **paraules, int n_paraules){
+
+    printString(1, "paraules:\n");
+
+    for (int i = 0; i < n_paraules; i++){
+
+        char *buffer;
+        asprintf(&buffer, "\t[%s]\n", paraules[i]);
+        printString(1,buffer);
+        free(buffer);
+    }
+}
+
+/*
+    funcio que comprova si un string es un número
+    1 = si, 0 = no
+*/
+
 int comprovarSiNumero(char *str){
     int i=0;
-    int esDigit=1;
+
     while(str[i]!='\0' ){
-        if(!(str[i] >='0' && str[i]<='9')){
-            esDigit=0;
-            break;
-        }
+        if(!(str[i] >='0' && str[i]<='9')) return 0
         i++;
     }
-    return esDigit;
+    return 1;
 
 }
+
+/*
+    funcio que mira si un string te un caracter
+    1 = si, 0 = no
+*/
 
 int teCaracter(char *str, char c){
     int i=0;
-    int trobat=0;
+
     while(str[i]!='\0' ){
         if(str[i]==c){
-            trobat=1;
-            break;
+            return 1;
         }
         i++;
     }
-    return trobat;
+    return 0;
 }
+
+/*
+    funcio que elimina un caracter de un string
+*/
+
 void eliminarCaracter(char *str, char c) {
     if (str == NULL) {
         return;
@@ -209,10 +233,21 @@ void eliminarCaracter(char *str, char c) {
     str[j]='\0';
 }
 
+/*
+    funcio que et diu la mida d'un fitxer
+*/
 
 int getSize(int fd){
     return lseek(fd, 0, SEEK_END);
 }
+
+/*
+@brief Extreu una part d'un fitxer
+@param fd el file descriptor del fitxer
+@param startPos la posició de on llegirem
+@param size la mida del que llegirem
+@return char* el que hem llegir
+*/
 
 char* readFd(int fd,int startPos, int size){
     lseek(fd, startPos, SEEK_SET);
@@ -223,42 +258,11 @@ char* readFd(int fd,int startPos, int size){
     return buffer;
 }
 
-
-
-char* llegirComanda(int *exitflag) {
-    if (*exitflag == 1) {
-        return strdup("controlc");
-    }
-    int flags = fcntl(1, F_GETFL, 0);
-    fcntl(1, F_SETFL, flags | O_NONBLOCK);
-    char buf[BUF_SIZE];
-    while (1) {
-        if (*exitflag == 1) {
-            return strdup("controlc");
-        }
-        int n = read(1, buf, BUF_SIZE - 1);
-        if (n < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                usleep(100000);
-                continue;
-            } else {
-                return NULL;
-            }
-        } else if (n == 0) {
-            return NULL;
-        } else {
-            buf[n] = '\0';
-            size_t len = strlen(buf);
-            if (len > 0 && buf[len-1] == '\n') {
-                buf[len-1] = '\0';
-            }
-            return strdup(buf);
-        }
-    }
-}
-
-
-
+/*
+@brief calcula el MD5SUM d'un fitxer
+@param *filepath el nom del fitxer
+@return char* el MD5SUM
+*/
 
 char * calcularMD5SUM(const char *filepath) {
     int pipefd[2];
@@ -308,6 +312,9 @@ char * calcularMD5SUM(const char *filepath) {
     return md5;
 }
 
+/*
+    Aquesta funcio crea un directori
+*/
 
 void crearDirectori(char *ruta){
     char *missDir; 
@@ -326,6 +333,9 @@ void crearDirectori(char *ruta){
     free(missDir);
 }
 
+/*
+    Aquesta funcio borra un directori
+*/
 
 void borrarDirectori(char *ruta){
     char *missDir;

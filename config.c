@@ -7,6 +7,7 @@
 
 /*
     funcio per passar dun ip (int) a string
+    (NO S'UTILITZA)
 */
 
 char *IPToString (unsigned int ip){
@@ -29,6 +30,7 @@ char *IPToString (unsigned int ip){
 
 /*
     funcio per passar de una string de ip a un int
+    (NO S'UTILITZA)
 */
 
 unsigned int strToIP (char *strIP, int strLen){
@@ -54,6 +56,7 @@ unsigned int strToIP (char *strIP, int strLen){
 
     return ip;
 }
+
 /*
 REALMS
 */
@@ -61,13 +64,11 @@ REALMS
     funcions d'alliberar memòria dinàmica
 */
 
-
-
 void freeEnvoy(Envoy e){
     if (e.nomRegneViatge != NULL){
         free(e.nomRegneViatge);
     }
-    if (e.status ) {
+    if (e.status) {
         free(e.status);
         e.status = NULL;
     }
@@ -81,11 +82,12 @@ void freeRuta(Ruta r){
     if (r.ipDest != NULL){
         free(r.ipDest);
     }*/
-   if (r.nomDest) free(r.nomDest);
+    if (r.nomDest) free(r.nomDest);
     if (r.ipDest)  free(r.ipDest);
 
    
 }
+
 void freeRegne(Regne *r){
 
     if (r == NULL) return;
@@ -272,6 +274,80 @@ void regneCpy (Regne *dest, Regne* org){
 
 }
 
+void cpyProducte (Producte *dest, Producte *org){
+
+    memset(dest, 0, sizeof(Producte));
+    strcpy((*dest).name, (*org).name);
+    (*dest).amount = (*org).amount;
+    (*dest).weight = (*org).weight;
+
+}
+
+/*
+@brief Posa un estatus a un envoy
+@param *e el envoy
+@param *text el estatus que volem posar
+*/
+
+void setStatusEnvoy(Envoy *e, const char *text) {
+    if (!e) return;
+
+    if (e->status != NULL) {
+        free(e->status);
+        e->status = NULL;
+    }
+
+    if (text) {
+        e->status = malloc(strlen(text) + 1);
+        if (e->status) {
+            strcpy(e->status, text);
+        }
+    }
+}
+
+/*
+@brief reseteja un evoy
+@param *e el envoy a resetejar
+*/
+
+void resetEnvoy(Envoy *e) {
+    if (e->status) {
+        free(e->status);
+        e->status = NULL;
+    }
+    e->ackFitxer = 0;
+    e->ackMD5SUM = 0;
+}
+
+/*
+@brief Mira si un Maester existeix
+@param *r el teu regne
+@param *nomRegneRuta el Maester que volem saber si existeix
+@return 0 = No existeix, 1 = existeix
+*/
+
+int comprovarRegneExisteix(Regne *r, char * nomRegneRuta) {
+    
+    char regneTrobat = 0;
+    for (int i = 0; i < r->n_rutes; i++){
+        //int nomRegLen = strlen(r->rutes[i].nomDest);
+        if (!strcmp(nomRegneRuta,r->rutes[i].nomDest)){
+            regneTrobat = 1;
+        }
+    }
+
+    if (!regneTrobat){
+        return 0; 
+    }
+    return 1; 
+}
+
+/*
+@brief Posa l'informació que troba en el fitxer .dat
+@param nomFitxer el nom del fitxer de configuració
+@return Regne el regne amb tot.
+*/
+
 Regne *extractInfo (const char *nomFitxer) {
 
     int f = open(nomFitxer ,O_RDONLY);
@@ -337,9 +413,6 @@ Regne *extractInfo (const char *nomFitxer) {
 
         ru.nomDest = readUntil(f, ' ', &trash);
         if (ru.nomDest == NULL) break;
-       
-        
-      
         
         eliminarCaracter(ru.nomDest, '&');
 
@@ -369,20 +442,16 @@ Regne *extractInfo (const char *nomFitxer) {
     return r;
 }
 
-
-
 /*
 PRODUCTES
 */
 
-void cpyProducte (Producte *dest, Producte *org){
+/*
+@brief Extreu un producte del fitxer
+@param f el file descriptor del fitxer
+@return Producte* punter a un producte
+*/
 
-    memset(dest, 0, sizeof(Producte));
-    strcpy((*dest).name, (*org).name);
-    (*dest).amount = (*org).amount;
-    (*dest).weight = (*org).weight;
-
-}
 Producte *extrureProducte(int f) {
     Producte *p= malloc(sizeof(Producte));
     memset(p, 0, sizeof(Producte));
@@ -394,6 +463,12 @@ Producte *extrureProducte(int f) {
     return p;
 }
 
+/*
+@brief Extreu tots els productes
+@param fProductes el file descriptor del fitxer
+@param *n_productes punter a la quantitat de productes
+@return Producte* punter als productes
+*/
 
 Producte *extreureProductes(int fProductes, int *n_productes){
     *n_productes = 0;
@@ -407,47 +482,6 @@ Producte *extreureProductes(int fProductes, int *n_productes){
     }
     close(fProductes);
     return productes;
-}
-
-int comprovarRegneExisteix(Regne *r, char * nomRegneRuta) {
-    
-    char regneTrobat = 0;
-    for (int i = 0; i < r->n_rutes; i++){
-        //int nomRegLen = strlen(r->rutes[i].nomDest);
-        if (!strcmp(nomRegneRuta,r->rutes[i].nomDest)){
-            regneTrobat = 1;
-        }
-    }
-
-    if (!regneTrobat){
-        return 0; 
-    }
-    return 1; 
-}
-
-void setStatusEnvoy(Envoy *e, const char *text) {
-    if (!e) return;
-    if (e->status) {
-        free(e->status);
-        e->status = NULL;
-    }
-    if (text) {
-        e->status = malloc(strlen(text) + 1);
-        if (e->status) {
-            strcpy(e->status, text);
-        }
-    } else {
-        e->status = NULL;
-    }
-}
-
-void resetEnvoy(Envoy *e) {
-    if (e->status) {
-        free(e->status);
-        e->status = NULL;
-    }
-    e->ackFitxer = 0;
-    e->ackMD5SUM = 0;
 }
 
 
