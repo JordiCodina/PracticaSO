@@ -8,6 +8,9 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <signal.h>
+#include <time.h>
+#include <sys/time.h>
+
 
 #include "funcions_basiques.h"
 #include "config.h"

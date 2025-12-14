@@ -422,6 +422,7 @@ void sendCompra(char* nomRegneDest, char *nomMaester, Producte *productes, int n
                 return;
             }
             Producte *stock = extreureProductes(fdProductes, &n_stock);
+            stock = realloc(stock, (n_stock + numProductes) * sizeof(Producte));
             close(fdProductes);
             for (int i = 0; i < numProductes; i++) {
                 afegirAlStock(stock, &n_stock,productes[i].name,productes[i].amount,0);
@@ -429,15 +430,15 @@ void sendCompra(char* nomRegneDest, char *nomMaester, Producte *productes, int n
             actualitzarProductes(nomStock, stock, n_stock);
             free(stock);
             free(nomStock);
-            printString(1, "Order accepted by TheVale. Stock updated.\n");
+            printString(1, ">>> Order accepted by TheVale. Stock updated.\n");
         }
         else if(strcmp(tramaConfirmacioComanda->data,"REJECT&OUT_OF_STOCK")==0){
-            printString(1, "Trade failed. One or more products are out of stock.\n");
+            printString(1, ">>> Order rejected. One or more products are out of stock.\n");
         }
         else if(strcmp(tramaConfirmacioComanda->data,"REJECT&UNKNOWN_PRODUCT")==0){
-            printString(1, "Trade failed. Unknown product in the list.\n");
+            printString(1, ">>> Order rejected. Unknown product in the list.\n");
         }else{
-            printString(1, "Trade failed. Unknown error.\n");
+            printString(1, ">>> Order rejected. Unknown error.\n");
         }
 
     }
@@ -590,6 +591,7 @@ void startTrade(Regne *regneActual, char *comand, fd_set *master_set, int *max_f
         printString(1, "No products available . Use LIST PRODUCTS first.\n");
         free(nomRegneDest);
         freeTokens(paraules, n_paraules);
+        free(missDir);  
         return;
     }
     free(missDir);

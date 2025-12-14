@@ -48,13 +48,7 @@ typedef struct _ThreadLog {//no sutiltiza pero ho deixem temporalment per si de 
 } ThreadLog;
 
 
-//int create_client_socket(const char *ip, int port);
-
-//void freeClientConf(ClientConf *conf);
-
-//void printMissHopping(ClientConf *conf, char *nomOrg, char *nomDest);
-
-//unsigned short calcularChecksum(Trama *t);
+unsigned short calcularChecksum(Trama *t) ;
 
 /*
 @brief Crea una nova trama amb els camps especificats.

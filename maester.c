@@ -38,8 +38,8 @@ int main (int argc, char *argv[]){
     } 
     r->exit = &exitFlag;
     signal(SIGINT, signalHandler);
-    //borrar directoris antics si existeixen
-    borrarDirectoris(r);
+    //borrar directori antic si existeix  
+    borrarDirectori(r->rutaArxius);
     //iniciar terminal
     runTerminal(r, fitxerStock);
    

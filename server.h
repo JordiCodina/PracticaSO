@@ -33,6 +33,9 @@
 
 #define BUFFER_SIZE 256
 
+#define THREAD_INACTIVE   0   
+#define THREAD_RUNNING  1  
+#define THREAD_DONE     2  
 
  typedef struct {
     Regne *r;          

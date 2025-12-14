@@ -104,12 +104,14 @@ void* pledge(void *arg){
     }
 
     //obrir fitxer segell per comprovar que existeix
-    char *filename = malloc(FILENAME_SIGIL_SIZE * sizeof(char));
+    /*char *filename = malloc(FILENAME_SIGIL_SIZE * sizeof(char));
     if (!filename) {
         freeThreadPledge(tp);
         return NULL;
-    }
-    snprintf(filename, FILENAME_SIGIL_SIZE, "segells/%s", paraules[2]);
+    }*/
+    //snprintf(filename, FILENAME_SIGIL_SIZE, "segells/%s", paraules[2]);
+    char *filename;
+    asprintf(&filename, "segells/%s", paraules[2]);
     int fd = open(filename, O_RDONLY);
     if (fd == -1) {
         printString(1, "Sigil doesn't exist\n");
@@ -144,7 +146,7 @@ void* pledge(void *arg){
                 return NULL;
             }
 
-            r->rutes[i].alianca = 'P';
+            
             indexRuta = i;
             break;
         }
@@ -162,6 +164,7 @@ void* pledge(void *arg){
     resetEnvoy(&r->envoys[tp->indexEnvoy]);
     //Aqui assignem l'envoy que ara esta fent un pledge
     setStatusEnvoy(&r->envoys[tp->indexEnvoy], "pledge");
+    r->rutes[indexRuta].alianca = 'P';
     
     //calcular MD5 i size per posar a la trama 0x001
     char data[DATA_SIZE];
@@ -179,7 +182,14 @@ void* pledge(void *arg){
     
     //enviar la trama 0x01 per hops
     Trama *trama = crearTrama(0x01, r->ip, r->port, paraules[1], strlen(data), data);
-    enviarTramaDinamica(trama, r, 0); // trama s'allibera aquí
+    int socket = enviarTramaDinamica(trama, r, 0); // trama s'allibera aquí
+    if (socket < 0) {
+        printString(1, "Cannot send pledge request.\n");
+        resetEnvoy(&r->envoys[tp->indexEnvoy]);
+        r->rutes[indexRuta].alianca = 'N'; //N de none
+        freeThreadPledge(tp);
+        return NULL;
+    }
 
     close(fd);
     free(filename);
@@ -202,6 +212,7 @@ void* pledge(void *arg){
     int fdSigil = obrirFitxerSigil(paraules[2]);
     if (fdSigil == -1) {
         printString(1, "Error opening sigil file\n");
+        r->rutes[indexRuta].alianca = 'N';
         resetEnvoy(&r->envoys[tp->indexEnvoy]);
         freeThreadPledge(tp);
         return NULL;
@@ -209,10 +220,13 @@ void* pledge(void *arg){
 
     usleep(100000);//espera per si de cas per que arribi la trama anterior correctament (ja que si no no fa un reset del fitxer)
     //Començem a enviar el segell
+    struct timeval startTime, endTime;
+    gettimeofday(&startTime, NULL);
     printString(1, "Sending sigil ...\n");
     while (startPos <= size) {
-        usleep(2000);
-        //usleep(10000);
+      
+        usleep(10000);
+        //usleep(1000);
 
         if(r->envoys[0].ackFitxer==2){//si hi ha hagut un error enviant la trama 0x02
             printString(1, "Error sending sigil data. Cannot conect to realm.");
@@ -220,6 +234,7 @@ void* pledge(void *arg){
             close(fdSigil);
             resetEnvoy(&r->envoys[tp->indexEnvoy]);
             freeThreadPledge(tp);
+            
             return NULL;
         }
         if (r->exit && *(r->exit)) {//per si fa control C
@@ -234,7 +249,7 @@ void* pledge(void *arg){
         if (!sigilData) {
             printString(1, "Error reading sigil data\n");
             close(fdSigil);
-          
+            r->rutes[indexRuta].alianca = 'N';
             resetEnvoy(&r->envoys[tp->indexEnvoy]);
             freeThreadPledge(tp);
             return NULL;
@@ -244,10 +259,10 @@ void* pledge(void *arg){
         int socket = enviarTramaDinamica(trama, r, 0);
 
         if (socket < 0) {
-            printString(1, "Error sending sigil trama\n");
+            printString(1, "Error sending sigil trama.\n");
             free(sigilData);
             close(fdSigil);
-            
+            r->rutes[indexRuta].alianca = 'N';
             resetEnvoy(&r->envoys[tp->indexEnvoy]);
             freeThreadPledge(tp);
             return NULL;
@@ -255,10 +270,16 @@ void* pledge(void *arg){
 
         free(sigilData);
         startPos += chunk;
+        joinThreadServidor(r);
     }
-    printString(1, "Sigil sent.\n");
+  gettimeofday(&endTime, NULL);
+    long tempsMs = (endTime.tv_sec - startTime.tv_sec) * 1000 + (endTime.tv_usec - startTime.tv_usec) / 1000;
+    char *misstemps;
+    asprintf(&misstemps, "Sigil sent. (%ld ms)\n", tempsMs);
+    printString(1, misstemps);
+    free(misstemps);
     close(fdSigil);
-
+    
     //aqui vol dir que les acks estan be(ackFitxer i md5sum), per tant toca esperar el timeout de 2min per que faigi el pledge respond 
     //el servidor rebre el pledge respond i modificara 
     time_t inici = time(NULL);
@@ -268,6 +289,10 @@ void* pledge(void *arg){
         sleep(1);
         if (r->exit && *(r->exit)) break;
         if (r->rutes[indexRuta].alianca == 'S' || r->rutes[indexRuta].alianca == 'N') {//si ja ha rebut el pledge respond haruia de ser S o N, sino encara esta pendent
+            break;
+        }
+        if (r->envoys[0].ackFitxer==2 || r->envoys[0].ackMD5SUM==2) {
+            r->rutes[indexRuta].alianca = 'N';
             break;
         }
         if (difftime(time(NULL), inici) >= timeout) {
@@ -495,27 +520,32 @@ void handleNewConnection(Regne *r, fd_set *master_set, int *max_fd) {
     if (new_socket > *max_fd) *max_fd = new_socket;
     ServerThread *st = malloc(sizeof(ServerThread));
     st->client_fd = new_socket;
-    st->thread_complete = 0;
+    st->thread_complete = THREAD_INACTIVE;
     afegirthreadServidor(r, st);
 }
 
 void readSockets(fd_set *fds_set, Regne *r, int *max_fd) {
     //accept()
     if (FD_ISSET(r->fd_server, fds_set)) {
-        usleep(1000);
+        usleep(500);
         handleNewConnection(r, fds_set, max_fd);
     }
     //read de clients
     //usleep(1000);
     for (int i = 0; i < r->n_serverThreads; i++) {
         if (FD_ISSET(r->st[i]->client_fd, fds_set)) {
-            if (r->st[i]->thread_complete == 0) {
+             
+            //printf("Client fd: %d, Thread complete: %d\n", r->st[i]->client_fd,r->st[i]->thread_complete);
+            if (r->st[i]->thread_complete == THREAD_INACTIVE) {
                 
                 ThreadUnServidor *tus = malloc(sizeof(ThreadUnServidor));
                 tus->r = r;
                 tus->st = r->st[i];
-                usleep(1000);
-                if (pthread_create(&r->st[i]->thread_id, NULL, runServer, (void *)tus) != 0) {
+                r->st[i]->thread_complete = THREAD_RUNNING;
+                usleep(4500);
+                //usleep(3000);
+                if (pthread_create(&r->st[i]->thread_id, NULL, runServer, (void *)tus) != 0) { 
+                    r->st[i]->thread_complete =THREAD_DONE ;
                     printString(1, "Error creant thread\n");
                     free(tus);
                 }
@@ -564,7 +594,7 @@ char * escoltarTot(fd_set *master_set, int *max_fd, Regne *r) {
 
 }
 
-void borrarDirectoris(Regne *r){
+/*void borrarDirectoris(Regne *r){
     for(int i=0;i<r->n_rutes;i++){
         if(strcmp(r->rutes[i].nomDest,"DEFAULT")==0) continue;
         char *ruta;
@@ -573,4 +603,4 @@ void borrarDirectoris(Regne *r){
         free(ruta);
     }  
     borrarDirectori(r->rutaArxius);
-}
+}*/

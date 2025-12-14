@@ -37,7 +37,7 @@ int accept_client_connection(int server_fd) {
     
     new_socket = accept(server_fd, (struct sockaddr *) &address, (socklen_t*) &addrlen);
     if (new_socket < 0) {
-        //printString(1,ERROR_ACCEPT);
+       // printString(1,ERROR_ACCEPT);
         
         return -1;
     }
@@ -86,7 +86,7 @@ void afegirThread(Regne *r, int comandaN) {
 */
 void joinThreadServidor(Regne *r) {
      for(int i=0;i<r->n_serverThreads;){
-        if(r->st[i]->thread_complete==1){
+        if(r->st[i]->thread_complete==THREAD_DONE){
             close(r->st[i]->client_fd);
             pthread_join(r->st[i]->thread_id, NULL);
             removeThreadServidor(r, i); 
@@ -320,10 +320,13 @@ void rebreComandaProductes (Trama *t, Regne *r, int client_sock){
           char dataRes[DATA_SIZE];
         if(comandaStatus==1){//OK
             snprintf(dataRes, DATA_SIZE, "OK");
+            printString(1, ">>> Order processed successfully. Stock updated.\n");
         }else if(comandaStatus==0){//REJECT&OUT_OF_STOCK
             snprintf(dataRes, DATA_SIZE, "REJECT&OUT_OF_STOCK");
+            printString(1, ">>> Order rejected. Insufficient stock.\n");
         }else if(comandaStatus==-1){//REJECT&UNKNOWN_PRODUCT
-            snprintf(dataRes, DATA_SIZE, "REJECT&INSUFFICIENT_STOCK");
+            snprintf(dataRes, DATA_SIZE, "REJECT&UNKNOWN_PRODUCT");
+            printString(1, ">>> Order rejected. Unknown product in order.\n");
         }
     Trama * tramaRespostaComanda=crearTrama(0x16, r->ip, r->port, r->rutes[indexAliat].nomDest, strlen(dataRes), dataRes);
     enviarTramaSocket(tramaRespostaComanda, client_sock);
@@ -384,7 +387,7 @@ void rebreSigil(Regne *r,Trama *t){
      //si arriba un trama  ens posem al final del fitxer de sigil del regne desti i escrivim
     lseek(fd, 0, SEEK_END);
     write(fd, t->data, t->dataLength);
-    printf("Sigil size: %d, File size: %d\n", r->rutes[indexRuta].sigilSize, getSize(fd));
+    //printf("Sigil size: %d, File size: %d\n", r->rutes[indexRuta].sigilSize, getSize(fd));
 
 
     //comprovar si ja hem rebut tot el fitxer , si es aixi comprovar md5 i enviar ack corresponent
@@ -798,7 +801,8 @@ AQUI ES PROCESSEN TOTES LES TRAMES A PARTIR DEL TIPUS
                 }else{
                     resetEnvoy(&r->envoys[0]);
                     r->envoys[0].ackMD5SUM=2;
-                    printString(1, "El md5Sum no ha coincidit.\n");
+                    printString(1,"ERROR: MD5 sum is incorrect. Try again\n");
+
 
                 }
              
@@ -879,20 +883,20 @@ void* runServer(void *arg) {
         //printString(1, "Connexió tancada o error.\n");
         close(st->client_fd);
         free(t);
-        st->thread_complete = 1;
+        st->thread_complete = THREAD_DONE;
         return NULL;
     }
     if (servRead != sizeof(Trama)) {
         printString(1, "Trama rebuda incompleta.\n");
         free(t);
-        st->thread_complete = 1;
+        st->thread_complete = THREAD_DONE;
         return NULL;
     }
 
     if (esTramaEspecial(t->tipus)) {//trames com acks que si no posem aixo mai trobarien un match del nomDest ja que  els camps estan buits
         processarTrama(t, r, st->client_fd);
         free(t);
-        st->thread_complete = 1;
+        st->thread_complete = THREAD_DONE;
         return NULL;
     }
     if (!comprovarChecksum(t) && t->checksum > 0) {
@@ -902,7 +906,7 @@ void* runServer(void *arg) {
         enviarTramaDirecte(tramaNACK, atoi(paraules[1]), paraules[0], t->nom_desti);
         freeTokens(paraules, n_paraules);
         free(t);
-        st->thread_complete = 1;
+        st->thread_complete = THREAD_DONE;
         return NULL;
     }
     if (strcmp(t->nom_desti, r->nom) == 0) {// Trama per aquest regne
@@ -921,7 +925,7 @@ void* runServer(void *arg) {
 
         if(status == -1){//error , enviar trama ack KO , enviar trama dinamica si no pot enviar retorna -1 
             //, per tant hem de envair ack KO a origen
-            printString(1, "Error forwarding trama: Realm not found or not allied.\n");
+            printString(1, "Error forwarding. Cannot connect to realm.\n");
             char *data;
             asprintf(&data, "KO&%s", nom_origen);
             Trama *tramaACKKO = crearTrama(0x31, NULL, 0, NULL, strlen(data), data);
@@ -934,7 +938,7 @@ void* runServer(void *arg) {
         free(nom_origen);
         free(nom_desti);
     }
-    st->thread_complete = 1;
+    st->thread_complete = THREAD_DONE;
     return NULL;
 }
 
