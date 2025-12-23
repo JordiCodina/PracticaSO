@@ -214,7 +214,6 @@ int enviarTramaDinamica(Trama *t, Regne *r, int esHopping) {//esHopping = 1 aixi
     if(esHopping) {
         printMissHopping(conf, t->nom_origen, t->nom_desti);
     }
-    
     int status = conectarClient_EnviarTrama_FerClose(conf);
      
     freeClientConf(conf);

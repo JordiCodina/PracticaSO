@@ -45,6 +45,10 @@ void runTerminal (Regne *r, char *fitxerStock){
     FD_SET(r->fd_server, &master_set);
     FD_SET(STDIN_FILENO, &master_set);
     int max_fd = (r->fd_server > STDIN_FILENO) ? r->fd_server : STDIN_FILENO;
+    for (int i = 0; i < r->n_envoys; i++) {
+        FD_SET(r->envoys[i].pipeRead, &master_set);
+        if (r->envoys[i].pipeRead > max_fd) max_fd = r->envoys[i].pipeRead;
+    }
     iniciMs (r);
     printString(1, "$");
     while (comandaN != 7){ 
@@ -55,7 +59,7 @@ void runTerminal (Regne *r, char *fitxerStock){
         //escolta de comandes per teclat, fd de servidor (accept) i sockets de servidor(read)
         //si no detecta cap comanda pero si altres, retorna null
         comanda = escoltarTot(&master_set, &max_fd, r);
-        if (comanda == NULL) {
+        if (comanda == NULL) { 
             continue;
         }
             int n_paraules = 0;
@@ -134,7 +138,7 @@ void runTerminal (Regne *r, char *fitxerStock){
                         break;
                     } 
 
-                    if(r->envoys[0].status==NULL){
+                    /*if(r->envoys[0].status==NULL){
                         Thread_pledge *tp = malloc(sizeof(Thread_pledge));
                         tp->r = r;
                         tp->n_paraules = n_paraules;
@@ -149,15 +153,41 @@ void runTerminal (Regne *r, char *fitxerStock){
                     // pledge (r, paraules);
                     }else{
                         printString(1, "Only one pledge may be sworn at a time. Pledge has been withdrawn\n");
-                    }
+                    }*/
+                    int index =pledgeComprovar(r, paraules, n_paraules);
+                    if(index==-1) break;
+
+
+                    ForkRegneWritesEnvoy *frwe = malloc(sizeof(ForkRegneWritesEnvoy));
+                    frwe->comanda = 0; // PLEDGE
+                    frwe->indexEnvoy = 0;
+                    strncpy(frwe->regneDest, paraules[1], sizeof(frwe->regneDest) - 1);
+                    frwe->regneDest[sizeof(frwe->regneDest) - 1] = '\0';
+                    strncpy(frwe->rutaSegell, paraules[2], sizeof(frwe->rutaSegell) - 1);
+                    frwe->rutaSegell[sizeof(frwe->rutaSegell) - 1] = '\0';
+
+                    r->envoys[0].nomRegneViatge=malloc(strlen(paraules[1])+1);
+                    strcpy(r->envoys[0].nomRegneViatge,paraules[1]);
                     
+                    write(r->envoys[0].pipeWrite, frwe, sizeof(ForkRegneWritesEnvoy));
+             
                     break;
                 case 3:
 
-                    if(n_paraules == 3){
-                        listProductsAliat(r, paraules[2]/*,r->exit*/);
-                        break;
-                    }
+                    
+                    if(n_paraules == 3){ //enviar envoy!!!!!
+                        int index=comprovarlistproducts(r, paraules[2]);
+                        if(index==-1) break;
+
+                        ForkRegneWritesEnvoy *frwe = malloc(sizeof(ForkRegneWritesEnvoy));
+                        frwe->comanda = 1; // LIST PRODUCTS
+                        frwe->indexEnvoy = 0;
+                        strncpy(frwe->regneDest, paraules[2], sizeof(frwe->regneDest) - 1);
+                        frwe->regneDest[sizeof(frwe->regneDest) - 1] = '\0';
+                        write(r->envoys[0].pipeWrite, frwe, sizeof(ForkRegneWritesEnvoy));
+                        //listProductsAliat(r, paraules[2]/*,r->exit*/);
+                        break; 
+                    } 
                     else if(n_paraules == 2){
                         listProductsMaester(fitxerStock,0,"Maester");
                     }else{

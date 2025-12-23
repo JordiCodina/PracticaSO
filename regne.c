@@ -390,30 +390,31 @@ void pledgeRespond(Regne *r, char **paraules, int n_paraules) {
             snprintf(data, DATA_SIZE, "ACCEPT&%s", r->nom);
             Trama *t_enviar = crearTrama(0x03, r->ip, r->port,r->rutes[trobat].nomDest, strlen(data), data);
             int socket = enviarTramaDirecteSenseTancar(t_enviar,r->rutes[trobat].portDest,r->rutes[trobat].ipDest,paraules[2]);
-            if (socket < 0) {
+            /*if (socket < 0) {
                 return;
-            }
+            }*/
             //esperar ack/nack
             Trama *t = malloc(sizeof(Trama));
-            if (!t) {
+            /*if (!t) {
                 close(socket);
                 return;
-            }
-            int n1 = read(socket, t, sizeof(Trama));
+            }*/
+            /*int n1 = read(socket, t, sizeof(Trama));
             if (n1 <= 0) {
                 free(t);
                 printString(1, "Did not receive ACK/NACK for pledge response.\n");
                 close(socket);
                 return;
-            }
-            if (t->tipus == 0x31) { // ACK correcte
+            }*/
+            //if (t->tipus == 0x31) { // ACK correcte
                 char *miss;
                 asprintf(&miss, "Alliance with %s established.\n", paraules[2]);
                 printString(1, miss);
                 free(miss);
 
                 r->rutes[trobat].alianca = 'S';
-            }
+                return;
+            /*}
             else if (t->tipus == 0x69) { // NACK
                 char *miss2;
                 asprintf(&miss2, "Alliance with %s not established.\n", paraules[2]);
@@ -435,8 +436,9 @@ void pledgeRespond(Regne *r, char **paraules, int n_paraules) {
         else {
             printString(1, "Please respond with accept or reject.\n");
             return;
-        }
+        }*/
     }
+}
 
     else {
         printString(1, "No alliance request.\n");
@@ -553,6 +555,22 @@ void readSockets(fd_set *fds_set, Regne *r, int *max_fd) {
         }
     } 
 }
+void readEnvoys(fd_set *fds_set, Regne *r) {
+    for (int i = 0; i < r->n_envoys; i++) {
+        int fd = r->envoys[i].pipeRead;
+        if (FD_ISSET(fd, fds_set)) {
+            EnvoyWritesRegne msg;
+           // char buffer[275];
+            int n = read(fd, &msg, sizeof(msg));
+            if (n <= 0) {
+                close(fd);
+                continue;
+            }
+            processarMissatgeEnvoy(r, &msg);
+        }
+    }
+}
+
 
 
 char * escoltarTot(fd_set *master_set, int *max_fd, Regne *r) {
@@ -569,12 +587,13 @@ char * escoltarTot(fd_set *master_set, int *max_fd, Regne *r) {
             return NULL; 
         }
         readSockets(&read_set, r, max_fd);
+        readEnvoys(&read_set, r);
         // fd=0
         if (FD_ISSET(STDIN_FILENO, &read_set)) {
             comanda = malloc(COM_LEN);
             int n = read(STDIN_FILENO, comanda, COM_LEN - 1);
             if (n < 0) {
-
+ 
                 printString(1, "$");
                 free(comanda);
                 return NULL; 
@@ -593,14 +612,271 @@ char * escoltarTot(fd_set *master_set, int *max_fd, Regne *r) {
    
 
 }
+void processarMissatgeEnvoy(Regne *r, EnvoyWritesRegne *msg) {
+    Envoy *e = &r->envoys[msg->indexEnvoy];
 
-/*void borrarDirectoris(Regne *r){
-    for(int i=0;i<r->n_rutes;i++){
-        if(strcmp(r->rutes[i].nomDest,"DEFAULT")==0) continue;
-        char *ruta;
-        asprintf(&ruta, "/%s", r->rutes[i].nomDest);
-        borrarDirectori(ruta);
-        free(ruta);
-    }  
-    borrarDirectori(r->rutaArxius);
+    printf("Processing message from Envoy %d: Command %d\n", msg->indexEnvoy, msg->comanda);
+    switch (msg->comanda) {
+        case 1://pledge
+        printf("msg->comanda -> %d\n", msg->comanda);
+            if(msg->statusPledge==1){//accpet
+
+                r->rutes[msg->indexRuta].alianca = 'S'; 
+            }else if(msg->statusPledge==2){ //reject
+
+                r->rutes[msg->indexRuta].alianca = 'N'; 
+
+            }else{//timeout
+            r->rutes[msg->indexRuta].alianca = 'T'; 
+
+            }
+            
+            break;
+
+        case 2://list products
+            break;
+
+        case 3://send 
+            break;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+int pledgeComprovar(Regne *r, char **paraules, int n_paraules){
+
+    if (!comprovarRegneExisteix(r, paraules[1])) {
+        printString(1, "No such realm exists. The pledge is hereby withdrawn. Remember is case sensitive\n");
+        return -1;
+    }
+    int indexRuta = -1;
+    for (int i = 0; i < r->n_rutes; i++) {
+        if (strcmp(r->rutes[i].nomDest, paraules[1]) == 0) {
+            if (r->rutes[i].alianca == 'S') {
+                printString(1, "You are already allied with this Realm.\n");
+
+                return -1;
+            }
+            if (r->rutes[i].alianca == 'P') {
+                printString(1, "You have already sent an alliance request to this Realm.\n");
+ 
+                return -1;
+            }
+            if (r->rutes[i].alianca == 'O') {
+                printString(1, "You have a pending pledge from that Maester.\n");
+            
+                return -1;
+            }
+
+             
+            indexRuta = i;
+            break;
+        }
+    }
+    if (indexRuta == -1) {
+        printString(1, "Route not found for this Realm.\n");
+        return -1;
+    }
+
+    crearDirectori(r->rutaArxius);
+
+    return indexRuta;
+}
+
+
+//el regne esta desactualitzat !!! nome
+void pledgeEnvoyTramaInicial(char filenameSigil[30] , char nomDesti[50], Regne *r, int indexRuta){
+
+   char *filename;
+    asprintf(&filename, "segells/%s", filenameSigil);
+    int fd = open(filename, O_RDONLY);
+    if (fd == -1) {
+        printString(1, "Sigil doesn't exist\n");
+        free(filename);
+        return NULL;
+    }
+
+    char data[DATA_SIZE];
+    int size = getSize(fd);
+    char *md5 = calcularMD5SUM(filename);
+    if (!md5) {
+        printString(1, "Error calculant MD5\n");
+        close(fd);
+        free(filename);
+
+        return NULL;
+    }
+    snprintf(data, DATA_SIZE, "%s&%s&%d&%s", r->nom, filename, size, md5);
+
+ 
+
+     Trama *trama = crearTrama(0x01, r->ip, r->port,nomDesti , strlen(data), data);
+    int socket = enviarTramaDinamica(trama, r, 0); // trama s'allibera aquí
+    if (socket < 0) {
+        printString(1, "Cannot send pledge request.\n");
+        //r->rutes[indexRuta].alianca = 'N'; //N de none
+        return NULL;
+    }
+
+    close(fd);
+    free(md5);
+
+
+    char *buffer = NULL;
+    if (asprintf(&buffer, "Pledge sent to %s. Envoy 1 is on its way.\n", nomDesti) != -1) {
+        printString(1, buffer);
+        free(buffer);
+    }
+    return ;
+}
+void pledgeEnvoyEnviarSigil(char filenameSigil[30] , char nomDesti[50], Regne *r, int indexRuta,int *exitflag){
+
+    int startPos = 0;
+    char *filename;
+    asprintf(&filename, "segells/%s", filenameSigil);
+    int fdSigil = open(filename, O_RDONLY);
+    if (fdSigil == -1) {
+        printString(1, "Sigil doesn't exist\n");
+        free(filename);
+        return NULL;
+    }
+
+    Trama *trama;
+    int size = getSize(fdSigil);
+    usleep(100000);
+    printString(1, "Sending sigil ...\n");
+    while (startPos <= size) {   
+        usleep(10000);
+        //usleep(1000);
+        if (*exitflag) {
+            close(fdSigil);
+            return NULL;
+        }
+        int chunk = (startPos + 275 > size) ? (size - startPos) : 275;//si supera el size ajustem el chunk ja que la ultima trama  no sera 275
+        if (chunk <= 0) break;
+        char *sigilData = readFd(fdSigil, startPos, chunk);//llegim el fitxer del segell marcat per el if anterior(chunk pot ser mes petit que 275 o 275 maxim)
+        if (!sigilData) {
+            printString(1, "Error reading sigil data\n");
+            close(fdSigil);
+            //r->rutes[indexRuta].alianca = 'N';
+            return NULL;
+        }
+        //crear i enviar la trama 0x02 per hops , es la trama per enviar el segell trama a trama
+        trama = crearTrama(0x02, r->ip, r->port,nomDesti , chunk, sigilData);
+        int socket = enviarTramaDinamica(trama, r, 0);
+
+        if (socket < 0) {
+            printString(1, "Error sending sigil trama.\n");
+            free(sigilData);
+            close(fdSigil);
+            //r->rutes[indexRuta].alianca = 'N';
+            return NULL;
+        }
+
+        free(sigilData);
+        startPos += chunk;
+    }
+    free(filename);
+    return NULL;
+}
+
+int pledgeEnvoyWaitPledgeRespond(Regne *r, char nomDest[50], int *exitflag,int *pledgeRespondRebut){
+    time_t inici = time(NULL);
+    const double timeout = 120.0;
+    //return -1 si fa control c, 0 si fa timeout, 1 si ha rebut pledge respond
+    while (1) {
+        sleep(1);
+        //surtira daqui si fa control C o si ja ha rebut el pledge respond
+        if (*exitflag){
+            return -1;
+        }
+        if(*pledgeRespondRebut) {
+            return 1;
+        } 
+        if (difftime(time(NULL), inici) >= timeout) {
+            char *tmp = NULL;
+            if (asprintf(&tmp, "Pledge to %s timed out.\n", nomDest) != -1) {
+                printString(1, tmp);
+                free(tmp);
+            }
+            //timeout
+           // r->rutes[indexRuta].alianca = 'T'; // T de timeout
+           return 0;
+        }
+    }
+    return 0;
+}
+    
+/*
+    
+
+
+    //espera per si de cas per que arribi la trama anterior correctament (ja que si no no fa un reset del fitxer)
+    //Començem a enviar el segell
+    struct timeval startTime, endTime;
+    gettimeofday(&startTime, NULL);
+    
+    
+    
+    gettimeofday(&endTime, NULL);
+    long tempsMs = (endTime.tv_sec - startTime.tv_sec) * 1000 + (endTime.tv_usec - startTime.tv_usec) / 1000;
+    char *misstemps;
+    asprintf(&misstemps, "Sigil sent. (%ld ms)\n", tempsMs);
+    printString(1, misstemps);
+    free(misstemps);
+    close(fdSigil);
+    
+    //aqui vol dir que les acks estan be(ackFitxer i md5sum), per tant toca esperar el timeout de 2min per que faigi el pledge respond 
+    //el servidor rebre el pledge respond i modificara 
+    time_t inici = time(NULL);
+    const double timeout = 120.0;
+
+    while (1) {
+        sleep(1);
+        if (r->exit && *(r->exit)) break;
+        if (r->rutes[indexRuta].alianca == 'S' || r->rutes[indexRuta].alianca == 'N') {//si ja ha rebut el pledge respond haruia de ser S o N, sino encara esta pendent
+            break;
+        }
+        if (r->envoys[0].ackFitxer==2 || r->envoys[0].ackMD5SUM==2) {
+            r->rutes[indexRuta].alianca = 'N';
+            break;
+        }
+        if (difftime(time(NULL), inici) >= timeout) {
+            char *tmp = NULL;
+            if (asprintf(&tmp, "Pledge to %s timed out.\n", r->rutes[indexRuta].nomDest) != -1) {
+                printString(1, tmp);
+                free(tmp);
+            }
+            //TODO: aqui hem de comunicar que ha fet timeout
+           // r->rutes[indexRuta].alianca = 'T'; // T de timeout
+            break;
+        }
+    }*/
+    
+
+
+/*void* pledge(void *arg){
+   
+
+    //TODO: aixo ho fara el maester quan fagi el write cap el envoy
+    r->rutes[indexRuta].alianca = 'P';
+    
+    //calcular MD5 i size per posar a la trama 0x001
+    
+    
+    //enviar la trama 0x01 per hops
+   
+
+    return NULL;
 }*/

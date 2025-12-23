@@ -294,9 +294,12 @@ void rebreComandaProductes (Trama *t, Regne *r, int client_sock){
             freeTokens(paraules, n_paraules); 
             freeTokens(paraules2, n_paraules2);
         //ack md5 correcte
-        Trama *md5Ack = crearTrama(0x32, NULL, 0, NULL, strlen("CHECK_OK"), "CHECK_OK");
+        char *datamdACK;
+        asprintf(&datamdACK, "CHECK_OK&%s", r->nom);
+        Trama *md5Ack = crearTrama(0x32, NULL, 0, NULL, strlen(datamdACK), datamdACK);
         enviarTramaSocket(md5Ack, client_sock);
         free(md5Ack);
+        free(datamdACK);
         free(nomFitxer);
 
         //processar comanda i actualitzar stock
@@ -389,7 +392,6 @@ void rebreSigil(Regne *r,Trama *t){
     write(fd, t->data, t->dataLength);
     //printf("Sigil size: %d, File size: %d\n", r->rutes[indexRuta].sigilSize, getSize(fd));
 
-
     //comprovar si ja hem rebut tot el fitxer , si es aixi comprovar md5 i enviar ack corresponent
     if(r->rutes[indexRuta].sigilSize <= getSize(fd)){ 
 
@@ -405,15 +407,20 @@ void rebreSigil(Regne *r,Trama *t){
         }
         
        
-        Trama * ackMD5=crearTrama(0x32, NULL, 0,NULL, strlen("CHECK_OK"),"CHECK_OK");
+         char *dataackMD5;
+        asprintf(&dataackMD5, "CHECK_OK&%s", r->nom);
+        Trama * ackMD5=crearTrama(0x32, NULL, 0,NULL, strlen(dataackMD5),dataackMD5);
+        free(dataackMD5);
         if(strcmp(md5, r->rutes[indexRuta].MD5SUM)==0){
             enviarTramaDirecte(ackMD5, atoi(paraules[1]), paraules[0], r->rutes[indexRuta].nomDest);
             marcarAliancaPendent(r, indexRuta);
 
 
         }else{
-            ackMD5->dataLength=strlen("CHECK_KO");
-            memcpy(ackMD5->data,"CHECK_KO",strlen("CHECK_KO"));
+            char *dataackMD5;
+            asprintf(&dataackMD5, "CHECK_KO&%s", r->nom);
+            ackMD5->dataLength=strlen(dataackMD5);
+            memcpy(ackMD5->data,dataackMD5,strlen(dataackMD5));
             enviarTramaDirecte(ackMD5, atoi(paraules[1]), paraules[0], r->rutes[indexRuta].nomDest);
             r->rutes[indexRuta].ackMD5SUMStatus=0;
         }
@@ -484,7 +491,10 @@ void rebreSigil(Regne *r,Trama *t){
         }
         close(fdsigil); // tancar ara, després obriràs per escriure trames
         free(pathPNG);
-        Trama * ackTrama = crearTrama(0x31, NULL, 0, NULL, 2, "OK");
+        
+        char ackdata[DATA_SIZE];
+        snprintf(ackdata, DATA_SIZE, "OK&%s",r->nom);
+        Trama * ackTrama = crearTrama(0x31, NULL, 0, NULL, strlen(ackdata), ackdata);
         enviarTramaDirecte(ackTrama, atoi(paraules2[1]), paraules2[0], paraules[0]);//es fa el frre de trama aqui
     }
     freeTokens(paraules, n_paraules);
@@ -514,7 +524,29 @@ Rebre PLEDGE RESPOND
         return;
     }
 
+
+
+
     if (strcasecmp(paraules2[0], "ACCEPT") == 0) {
+        //enviar a l'enboy
+        int statusPledgeRespond=1; //ACCEPT
+       
+       
+        for(int i=0;i<r->n_envoys;i++){
+            if(strcmp(r->envoys[i].nomRegneViatge, paraules2[1])==0){ 
+                ForkRegneWritesEnvoy *frwe = malloc(sizeof(ForkRegneWritesEnvoy));
+                frwe->comanda = 5; // enviar pledge respond
+                frwe->indexEnvoy = i;
+                frwe->statusPledgeRespond =statusPledgeRespond;//1 ACCEPT , 0 REJECT
+                strcpy(frwe->ipDest, paraules[0]);
+                frwe->portDest = atoi(paraules[1]);
+                
+                write(r->envoys[i].pipeWrite,frwe, sizeof(ForkRegneWritesEnvoy));
+                return;//!!!!!!!!!!
+            }
+
+        }
+
         for (int i = 0; i < r->n_rutes; i++) {
             if (strcmp(r->rutes[i].nomDest,paraules2[1] ) == 0) {
                 if(r->rutes[i].alianca=='P'){  
@@ -524,11 +556,14 @@ Rebre PLEDGE RESPOND
                 }
                 r->rutes[i].alianca = 'S';
                 //if (r->rutes[i].esDirectamentConectat == 0) {
+                    
                     r->rutes[i].portDest = atoi(paraules[1]);
                     if (r->rutes[i].ipDest) {
                         free(r->rutes[i].ipDest);
                     }
-                    r->rutes[i].ipDest = strdup(paraules[0]);                  
+                    r->rutes[i].ipDest = strdup(paraules[0]); 
+                    
+                    
                 //}
                 char *buffer;
                 asprintf(&buffer, ">>> Alliance with %s forged successfully!\n", r->rutes[i].nomDest);
@@ -562,7 +597,9 @@ Rebre PLEDGE RESPOND
 
 
     }else if(r->rutes[currRuta].alianca=='S'){
-        Trama * ackTrama = crearTrama(0x31, NULL, 0, NULL, 2, "OK");
+        char ackdata2[DATA_SIZE];
+        snprintf(ackdata2, DATA_SIZE, "OK&%s",r->nom);
+        Trama * ackTrama = crearTrama(0x31, NULL, 0, NULL, strlen(ackdata2), ackdata2);
         write(client_sock, ackTrama, sizeof(Trama));
         free(ackTrama);
         
@@ -784,26 +821,86 @@ AQUI ES PROCESSEN TOTES LES TRAMES A PARTIR DEL TIPUS
                 /*for (int i =0;i<r->n_envoys;i++){
                     //mirar el nom del regne del envoy , fase 3 no cal
                 }*/
-                if(strcmp(t->data,"OK")==0){
-                    r->envoys[0].ackFitxer=1;
-                    //printString(1, "Trama ack fitxer  OK rebuda:\n");
+                int statusACKFitxer=0;
+                int n_paraules = 0;
+                char **paraules = tokenizer(t->data, &n_paraules, '&');
+                if(strcmp("OK",paraules[0])==0){
+                    statusACKFitxer=1;
+                    printString(1, "Trama ack fitxer  OK rebuda:\n");
                 }else{
-                    r->envoys[0].ackFitxer=2;
+                    statusACKFitxer=2;
                     printString(1, "Trama ack fitxer  KO rebuda:\n");
+                }
 
+                int quinEnvoy=-1;
+                printf("Looking for envoy for regne \n");
+                for(int i=0;i<r->n_envoys;i++){
+                    if(r->envoys[i].nomRegneViatge==NULL){
+                        continue;
+                    }
+                    printf("Comparing envoy regne %s with %s\n", r->envoys[i].nomRegneViatge, paraules[1]);
+
+                    if(strcmp(r->envoys[i].nomRegneViatge,paraules[1])==0){
+                        quinEnvoy=i;
+
+                        printf("Found matching envoy at index %d\n", quinEnvoy);
+                        break;
+                    }
+                }
+                if(quinEnvoy!=-1){
+                    r->envoys[quinEnvoy].ackFitxer=statusACKFitxer;
+
+
+                    ForkRegneWritesEnvoy *frwe = malloc(sizeof(ForkRegneWritesEnvoy));
+                    frwe->comanda = 3; // enviar ackFiter
+                    frwe->indexEnvoy = quinEnvoy;
+
+                    frwe->ackStatus =statusACKFitxer;
+                    write(r->envoys[quinEnvoy].pipeWrite, frwe, sizeof(ForkRegneWritesEnvoy));
                 }
                 
+
+
+
+                freeTokens(paraules, n_paraules);
+
                 break;
             case 0x32:
-                 if(strcmp(t->data,"CHECK_OK")==0){
-                    r->envoys[0].ackMD5SUM=1;
-                    //printString(1, "Trama MD5 OK rebuda:\n");
+                int statusACKMD5=0;
+                int n_paraules2 = 0;
+                //printf("data->%s\n", t->data);
+                char **paraules2 = tokenizer(t->data, &n_paraules2, '&');
+                 if(strcmp(paraules2[0],"CHECK_OK")==0){
+                    statusACKMD5=1;
+                    printString(1, "Trama MD5 OK rebuda:\n");
                 }else{
-                    resetEnvoy(&r->envoys[0]);
-                    r->envoys[0].ackMD5SUM=2;
                     printString(1,"ERROR: MD5 sum is incorrect. Try again\n");
+                }
+                int quinEnvoy2=-1;
+                printf("Looking for envoy for regne \n");
+                for(int i=0;i<r->n_envoys;i++){
+                    if(r->envoys[i].nomRegneViatge==NULL){
+                        continue;
+                    }
+                    printf("envoy regne: %s , paraula: %s\n", r->envoys[i].nomRegneViatge, paraules2[1]);
+                    printf("Comparing envoy regne %s with %s\n", r->envoys[i].nomRegneViatge, paraules2[1]);
 
+                    if(strcmp(r->envoys[i].nomRegneViatge,paraules2[1])==0){
+                        quinEnvoy2=i;
 
+                        printf("Found matching envoy at index %d\n", quinEnvoy2);
+                        break;
+                    }
+                }
+                if(quinEnvoy2!=-1){
+                    r->envoys[quinEnvoy2].ackMD5SUM=statusACKMD5;
+
+ 
+                    ForkRegneWritesEnvoy *frwe = malloc(sizeof(ForkRegneWritesEnvoy));
+                    frwe->comanda = 4; // enviar ackMD5
+                    frwe->indexEnvoy = quinEnvoy2;
+                    frwe->ackStatus =statusACKMD5;
+                    write(r->envoys[quinEnvoy2].pipeWrite, frwe, sizeof(ForkRegneWritesEnvoy));
                 }
              
                 break;

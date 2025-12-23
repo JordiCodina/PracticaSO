@@ -18,7 +18,9 @@
 
 //comandes
 void listProductsMaester(char *nomFitxer, int opcio,char * nomAliat) ;
-void listProductsAliat(Regne *r, char *nomAliat);
+
+int comprovarlistproducts(Regne * r, char *nomAliat);
+void listProductsAliat(Regne *r, char *nomAliat, int indexAliat);
 void startTrade(Regne *r, char *comand, fd_set *master_set, int *max_fd) ;
 
 

@@ -34,6 +34,9 @@ typedef struct {
     int ackFitxer;
     int ackMD5SUM; 
 
+    int pipeRead;
+    int pipeWrite;
+    pid_t pid;
 } Envoy;
 /*
 typedef struct {
@@ -95,7 +98,14 @@ typedef struct  {
     int n_rutes;
 
     int fd_server;
+
+    //feine[]
+
+
+    //sahred memory global
     int *exit;
+    //sem
+    //
 
     Fil *fils;//aixo potser s'hauria de posar a envoys pero de moment tenim nomes 1
     int n_fils;
