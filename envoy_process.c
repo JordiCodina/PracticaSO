@@ -102,14 +102,14 @@ void runenvoy(int pipeRead, int pipeWrite, Regne *r) {
                     if(indexRuta<0){ 
                         return;
                     }
-                    listProductsAliat(r, buffer.regneDest,indexRuta);
+                    listProductsAliat(r, buffer.regneDest,indexRuta, buffer.portDest, buffer.ipDest);
                     break;
                 case 2: // SEND PRODUCTS
                     indexRuta=trobarRutaIndex(r, buffer.regneDest);
                     if(indexRuta<0){ 
                         return; //cas imposible
                     }
-                    int statusSendTrade = sendTrade( crearRutaComanda( r->rutaArxius, r->nom, buffer.regneDest), buffer.regneDest, r,indexRuta);
+                    int statusSendTrade = sendTrade( crearRutaComanda( r->rutaArxius, r->nom, buffer.regneDest), buffer.regneDest, r,indexRuta, buffer.portDest, buffer.ipDest);
                     if(!statusSendTrade){
                         notificarRegneErrorMissio(4, pipeWrite, infoInicial, r);
                     }
@@ -157,6 +157,9 @@ void runenvoy(int pipeRead, int pipeWrite, Regne *r) {
                             response.statusPledge = 1; // write  ACCEPT
                             response.portDest = buffer.portDest;
                             strcpy(response.ipDest, buffer.ipDest);
+
+                            //strcpy(r->rutes[indexRuta].ipDest, buffer.ipDest);
+                            //r->rutes[indexRuta].portDest = buffer.portDest;
                             
                             write(pipeWrite, &response, sizeof(EnvoyWritesRegne));
                         }else{

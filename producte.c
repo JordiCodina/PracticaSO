@@ -140,11 +140,11 @@ int comprovarlistproducts(Regne * r, char *nomAliat){
 
 }
 
-void listProductsAliat(Regne *r, char *nomAliat, int indexAliat/*,int* exitFlag*/) {
+void listProductsAliat(Regne *r, char *nomAliat, int indexAliat/*,int* exitFlag*/,int portDestinat,char *ipDestinat) {
         
    
     Trama *t = crearTrama(0x11, r->ip, r->port, nomAliat, 0, r->nom);
-    int socket=enviarTramaDirecteSenseTancar(t, r->rutes[indexAliat].portDest, r->rutes[indexAliat].ipDest, nomAliat);
+    int socket=enviarTramaDirecteSenseTancar(t, portDestinat, ipDestinat, nomAliat);
     if(socket<0){
         printString(1, "Error sending trama to ally. Probably is disconnected.\n");
         return;
@@ -326,7 +326,7 @@ int comprovarSendTrade( char* nomRegneDest, char *nomMaester, Producte *producte
     return indexRuta;
 }
 
-int sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r,int indexRuta) {
+int sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r,int indexRuta, int portDestinat,char *ipDestinat) {
 
     
     int fdList=open(nomFitxer, O_RDONLY);
@@ -349,7 +349,7 @@ int sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r,int indexRuta) {
     free(md5);
     //enviar trama 0x14
     Trama *tramaPeticioComanda=crearTrama(0x14,r->ip , r->port, nomRegneDest, strlen(data), data);
-    int socket=enviarTramaDirecteSenseTancar(tramaPeticioComanda, r->rutes[indexRuta].portDest, r->rutes[indexRuta].ipDest, nomRegneDest);//el free de trama es fa aqui dintre
+    int socket=enviarTramaDirecteSenseTancar(tramaPeticioComanda, portDestinat, ipDestinat, nomRegneDest);//el free de trama es fa aqui dintre
     if(socket<0){
         printString(1, "Error sending trade request to ally. Probably is disconnected.\n");
         close(fdList);
@@ -743,8 +743,8 @@ void startTrade(Regne *regneActual, char *comand, fd_set *master_set, int *max_f
                         printString(1, "All envoys are occupied. Your command must wait\n");
                         break;
                 }
-             
-                ForkRegneWritesEnvoy *frwe = crearForkRegneWritesEnvoy(2,nomRegneDest,NULL,0,0,0,NULL,0);
+              
+                ForkRegneWritesEnvoy *frwe = crearForkRegneWritesEnvoy(2,nomRegneDest,NULL,indexEnvoy,0,0,regneActual->rutes[index].portDest,regneActual->rutes[index].ipDest);
                 write(regneActual->envoys[indexEnvoy].pipeWrite, frwe, sizeof(ForkRegneWritesEnvoy));
                 free(frwe);
                 areTrading = 0;

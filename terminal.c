@@ -176,10 +176,10 @@ void runTerminal (Regne *r, char *fitxerStock){
                             break;
                         }
                         if(setEnvoyEnMissio(r, envoyIndex, paraules[2]) == -1) break;
-                        ForkRegneWritesEnvoy *frwe = crearForkRegneWritesEnvoy(1,paraules[2],NULL,0,0,0,NULL,0);
+                        ForkRegneWritesEnvoy *frwe = crearForkRegneWritesEnvoy(1,paraules[2],NULL,0,0,0,r->rutes[index].ipDest,r->rutes[index].portDest);
                         write(r->envoys[envoyIndex].pipeWrite, frwe, sizeof(ForkRegneWritesEnvoy));
                         free(frwe);
-                        break; 
+                        break;  
                     } 
                     else if(n_paraules == 2){
                         listProductsMaester(fitxerStock,0,"Maester");
