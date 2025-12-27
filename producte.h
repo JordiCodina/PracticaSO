@@ -31,4 +31,6 @@ void actualitzarProductes(char *nomFitxer, Producte *productes, int n_productes)
 int treureDelStock(Producte *productes, int *n_productes, const char *nom, int quantitat) ;
 void afegirAlStock(Producte *productes, int *n_productes,const char *nom, int quantitat, float pes) ;
 
+
+int sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r,int indexRuta);
 #endif

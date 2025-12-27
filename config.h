@@ -19,35 +19,18 @@ typedef struct
     float weight;
 } Producte;
 
-/*typedef struct {
-
-    char status;
-    char *nomRegneViatge;
-    
-
-} Envoy;*/
 
 typedef struct {
 
-    char *status;//"lliure=NULL"  "pledge" "pledgeRespond"...
+    int status; // 0 = lliure, 1 = ON MISSION
     char *nomRegneViatge;
-    int ackFitxer;
-    int ackMD5SUM; 
-
+    //int ackFitxer;
+    //int ackMD5SUM; 
     int pipeRead;
     int pipeWrite;
     pid_t pid;
 } Envoy;
-/*
-typedef struct {
 
-    int status;
-    int tipus;
-    char * ordre;
-    char *nomRegneOrg;
-
-} Ack;
-*/
 typedef struct {
 
     char *nomDest;
@@ -63,26 +46,13 @@ typedef struct {
     int ackFitxerStatus;
     int ackMD5SUMStatus;
 
-   // Ack *acks;
-    //int nAcks;
-
 } Ruta;
-
-
-typedef struct {
-
-    pthread_t thread_id;
-    int comanda;
-
-} Fil;
-
 
 typedef struct serverThread {
     pthread_t thread_id;
     int thread_complete;
     int client_fd;
 } ServerThread;
-
 
 typedef struct  {
 
@@ -99,23 +69,12 @@ typedef struct  {
 
     int fd_server;
 
-    //feine[]
-
-
-    //sahred memory global
     int *exit;
-    //sem
-    //
-
-    Fil *fils;//aixo potser s'hauria de posar a envoys pero de moment tenim nomes 1
-    int n_fils;
 
     ServerThread **st;
     int n_serverThreads;
 
 } Regne;
-
-
 
 //funcions d'alliberar memòria dinàmica
 

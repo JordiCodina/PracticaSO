@@ -4,37 +4,48 @@
 
 int exitEnvoyFlag = 0;
 
-void signalHandlerEnvoy(int sig) {
+void signalHandlerEnvoy() {
     exitEnvoyFlag = 1;
 }
 
 int mirarTimeoutPledge(int mirarTimeoutFlag,double timeout, time_t inici, char *nomDest) {
         if (mirarTimeoutFlag <= 0) return 0;
+
         if (difftime(time(NULL), inici) >= timeout) {
-            char *tmp = NULL;
-            if (asprintf(&tmp, "Pledge to %s timed out.\n", nomDest) != -1) {
-                printString(1, tmp);
-                free(tmp);
-            }
-            
-        //write timeout
-        return 0;
+            return 2;
     }
     return 1;
-}    
-void runenvoy(key_t shm_key, int pipeRead, int pipeWrite,Regne *r) {
+} 
+
+
+void notificarRegneErrorMissio(int comanda,int pipeWrite, ForkRegneWritesEnvoy infoInicial, Regne *r) {//comanda 4 = error missio( no es timeout ni accept ni reject)
+    //errors pot ser per acks , errors de connexio , etc
+    EnvoyWritesRegne responseTimeout;
+    memset(&responseTimeout, 0, sizeof(EnvoyWritesRegne));
+    responseTimeout.comanda = comanda;
+    responseTimeout.indexEnvoy = infoInicial.indexEnvoy;
+    int indexRuta=trobarRutaIndex(r, infoInicial.regneDest);
+    responseTimeout.indexRuta=indexRuta;//no es fa servir
+    responseTimeout.statusPledge = 0; //no es fa servir
+    write(pipeWrite, &responseTimeout, sizeof(EnvoyWritesRegne));
+
+}
+
+
+void runenvoy(int pipeRead, int pipeWrite,Regne *r) {
 
     int statusACKFitxer=0;
     int statusACKMD5=0;
-    int statuspledgeRespond=0;
     time_t inici;
      const double timeoutPledge = 120.0;
      int mirarTimeout=0;
+     int indexRuta=-1;
     signal(SIGINT, signalHandlerEnvoy);
 
     fd_set read_set;
     struct timeval timeout;
     ForkRegneWritesEnvoy infoInicial;
+    EnvoyWritesRegne response;
 
     while (1) {
         if (exitEnvoyFlag) break;
@@ -49,9 +60,18 @@ void runenvoy(key_t shm_key, int pipeRead, int pipeWrite,Regne *r) {
 
         if (ret < 0) continue;
         if(ret == 0) {
-             mirarTimeout = mirarTimeoutPledge(mirarTimeout,timeoutPledge, inici, infoInicial.regneDest);
+             int statusTimeout = mirarTimeoutPledge(mirarTimeout,timeoutPledge, inici, infoInicial.regneDest);
+             if(statusTimeout==2) {//indica que ha fet timeout
+                    mirarTimeout=0;
+                    response.comanda = 1;
+                    response.indexEnvoy = infoInicial.indexEnvoy;
+                    int indexRuta=trobarRutaIndex(r, infoInicial.regneDest);
+                    response.indexRuta=indexRuta;
+                    response.statusPledge = 0; // write TIMEOUT
+                    write(pipeWrite, &response, sizeof(EnvoyWritesRegne));
+             }
             continue;
-        } // Timeout, loop again
+        } 
 
 
         if (FD_ISSET(pipeRead, &read_set)) {
@@ -67,82 +87,88 @@ void runenvoy(key_t shm_key, int pipeRead, int pipeWrite,Regne *r) {
                     mirarTimeout=0;
                     
                     infoInicial=buffer;
-                    pledgeEnvoyTramaInicial(infoInicial.rutaSegell, infoInicial.regneDest,r,infoInicial.indexEnvoy);
+                    int status = pledgeEnvoyTramaInicial(infoInicial.rutaSegell, infoInicial.regneDest,r);
+                    if(!status){
+                        notificarRegneErrorMissio(4, pipeWrite, infoInicial, r);
+                    }
 
                     break;
                 case 1: // LIST PRODUCTS
-                    //
-                    int indexRuta=-1;
-                    for(int i=0;i<r->n_rutes;i++){
-                        if(strcmp(r->rutes[i].nomDest,buffer.regneDest)==0){
-                            indexRuta=i;
-                            break;
-                        }
-                    }   
+                    indexRuta=trobarRutaIndex(r, buffer.regneDest); 
+                    if(indexRuta<0){ 
+                        return;
+                    }
                     listProductsAliat(r, buffer.regneDest,indexRuta);
-                    // No implementat en aquesta fase
                     break;
                 case 2: // SEND PRODUCTS
-                    // No implementat en aquesta fase
+                    indexRuta=trobarRutaIndex(r, buffer.regneDest);
+                    if(indexRuta<0){ 
+                        return; //cas imposible
+                    }
+                    int statusSendTrade = sendTrade( crearRutaComanda( r->rutaArxius, r->nom, buffer.regneDest), buffer.regneDest, r,indexRuta);
+                    if(!statusSendTrade){
+                        notificarRegneErrorMissio(4, pipeWrite, infoInicial, r);
+                    }
+
                     break;
-                case 3: // (PLEDGE) REBRE ACK FITXER -> OK -> ENVIAR SIGIL
+                case 3: // (PLEDGE) REBRE ACK FITXER -> si OK -> ENVIAR SIGIL
                     statusACKFitxer=buffer.ackStatus; // 1 = OK , 2 = KO
                     if(statusACKFitxer==1){
-                        printf("Envoy PID %d received ACK FITXER OK, sending sigil...\n", getpid());
-                        pledgeEnvoyEnviarSigil( infoInicial.rutaSegell, infoInicial.regneDest,r,infoInicial.indexEnvoy,&exitEnvoyFlag);
-                    }else{
-                        //write ackfitxer ha anat malament
+                        int status=pledgeEnvoyEnviarSigil( infoInicial.rutaSegell, infoInicial.regneDest,r,infoInicial.indexEnvoy,&exitEnvoyFlag);
+                    }
+                    if (statusACKFitxer != 1 || status == -1) {
+                        
+                        mirarTimeout=0;
+                        notificarRegneErrorMissio(4, pipeWrite, infoInicial, r);
                     }
                 break;
                 case 4:// (PLEDGE) REBRE ACK MD5SUM -> OK -> COMENÇAR 2 minuts
+
                     statusACKMD5=buffer.ackStatus; // 1 = OK , 2 = KO
                     if(statusACKMD5==1){
                         mirarTimeout=1;
-                         inici= time(NULL); //guardem
-                        printf("Envoy PID %d received ACK MD5SUM OK, starting timeout...\n", getpid());
-                        
-                        }else{
-
-                        //write ackmd5 ha anat malament
+                        inici= time(NULL); //guardem temps inici per mirar timeout                        
+                    }else{
+                        mirarTimeout=0;
+                        notificarRegneErrorMissio(4, pipeWrite, infoInicial, r);
                     }
                     break;
                 case 5:// (PLEDGE respond)rebre pledge respond
                     
-                printf("pledge respond received, case 5\n");
+                    
+                    response.comanda = 1;
+                    response.indexEnvoy = infoInicial.indexEnvoy;
+                    int indexRuta=trobarRutaIndex(r, infoInicial.regneDest);
+                    response.indexRuta=indexRuta;
+                    if(indexRuta==-1){
+                        printString(1, "No route found for the specified realm in pledge respond.\n");
+                        break;
+                    }
                     if(mirarTimeoutPledge(mirarTimeout,timeoutPledge, inici, infoInicial.regneDest)) {
-                        printString(1, "Pledge respond received after timeout, ignoring...\n");
-                        mirarTimeout=0;
-                        if(buffer.statusPledgeRespond==1) // 1 = ACCEPT , 2 = REJECT
+                         mirarTimeout=0;
+                        if(buffer.statusPledgeRespond==1) // 1 = ACCEPT , 2 = REJECT , 0 = TIMEOUT
                         { 
-                            EnvoyWritesRegne response;
-                            for(int i=0;i<r->n_rutes;i++){
-                                if(strcmp(r->rutes[i].nomDest,infoInicial.regneDest)==0){
-                                    response.indexRuta=i;
-                                    break;
-                                }
-                            }
+                            response.statusPledge = 1; // write  ACCEPT
                             
-                            response.comanda = 1; // PLEDGE RESPONSE
-                            response.statusPledge = 1; // ACCEPT
-                            response.indexEnvoy = infoInicial.indexEnvoy;
                             write(pipeWrite, &response, sizeof(EnvoyWritesRegne));
-                            printf("Envoy PID %d sent PLEDGE RESPOND ACCEPT, exiting...\n", getpid());
-
-                            //w rite accept
                         }else{
+                            response.statusPledge = 2;
+                            write(pipeWrite, &response, sizeof(EnvoyWritesRegne)); 
                             //write reject
                         }
+                    }else{ //timeout
+                        response.statusPledge = 0;
+                        write(pipeWrite, &response, sizeof(EnvoyWritesRegne));
+                       
+
                     }
-
-
-                    printf("Envoy PID %d received PLEDGE RESPOND %d, exiting...\n", getpid(), statuspledgeRespond);
-                   
+                     mirarTimeout=0;                  
                     
                 break;
 
                 break;
                 default:
-                    printf("Envoy PID %d received unknown command %d\n", getpid(), buffer.comanda);
+                    printString(1, "Unknown order received by envoy.\n");
                     break;
             }
 

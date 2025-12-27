@@ -25,13 +25,14 @@
 #define DATA_SIZE 275
 #define COM_LEN 256
 
-typedef struct _Thread_pledge {
+/*typedef struct _Thread_pledge {
     //id
     Regne *r;
     char **paraules;
     int n_paraules;
     int indexEnvoy;
-} Thread_pledge;
+} Thread_pledge;*/
+
 
 
 
@@ -46,6 +47,7 @@ typedef struct _ForkRegneWritesEnvoy {//struc que li enviem al envoy
     int portDest; //pledge respond
 } ForkRegneWritesEnvoy;
 
+
 typedef struct _EnvoyWritesRegne {
 
     int comanda;//1 pledge , 2listproducts , 3 sendproducts 
@@ -59,8 +61,9 @@ typedef struct _EnvoyWritesRegne {
 } EnvoyWritesRegne;
 
 
-
-
+ForkRegneWritesEnvoy *crearForkRegneWritesEnvoy(int comanda,const char *regneDest,const char *rutaSegell,int indexEnvoy,int ackStatus,int statusPledgeRespond,const char *ipDest,int portDest) ;
+int trobarEnvoyIndex(Regne *r, const char *regneDest);
+int trobarRutaIndex(Regne *r, const char *regneDest) ;
 int comprovarRutaRegneValid(char *str,int n_rutes , Ruta *rutes);
 
 // Comanda LIST REALMS
@@ -68,20 +71,17 @@ int comprovarRutaRegneValid(char *str,int n_rutes , Ruta *rutes);
 void listRealms(Regne *r);
 
 // Comanda PLEDGE
-//void sendEnvoy(Regne *r, char *casa);
-//void pledge (Regne *r, char comanda [100]);
-//void pledge (Regne *r,char **paraules);
-void* pledge (void *arg);
 int pledgeComprovar(Regne *r, char **paraules, int n_paraules);
-void pledgeEnvoyTramaInicial(char filenameSigil[30] , char nomDesti[50], Regne *r, int indexRuta);
-void pledgeEnvoyEnviarSigil(char filenameSigil[30] , char nomDesti[50], Regne *r, int indexRuta,int *exitflag);
+int pledgeEnvoyTramaInicial(char filenameSigil[30] , char nomDesti[50], Regne *r);
+int pledgeEnvoyEnviarSigil(char filenameSigil[30] , char nomDesti[50], Regne *r, int indexRuta,int *exitflag);
 void pledgeRespond ( Regne *r,char** paraules,int n_paraules);
 // Comanda PLEDGE STATUS 
 void pledgeStatus (Regne *r);
 // Comanda ENVOY STATUS
 void envoyStatus (Regne *r);
-
-
+int trobarEnvoyLliure(Regne *r) ;
+int setEnvoyEnMissio(Regne *r, int indexEnvoy, const char *regneDest);
+int setEnvoyLliure (Regne *r, int indexEnvoy) ;
 
 
 void notificarDesconnexioAliances(Regne *r);

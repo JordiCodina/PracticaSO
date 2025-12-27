@@ -14,12 +14,5 @@
 
 #include "regne.h"
 
-
-//struc shared data
-typedef struct {
-    int counter;
-    char message[256];
-} shared_data;
-
-void runenvoy(key_t shm_key, int pipeRead, int pipeWrite,Regne *r) ;
+void runenvoy( int pipeRead, int pipeWrite,Regne *r) ;
 #endif

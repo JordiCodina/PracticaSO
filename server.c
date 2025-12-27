@@ -65,20 +65,6 @@ void removeThreadServidor(Regne *r, int index) {
         r->st = realloc(r->st, r->n_serverThreads * sizeof(ServerThread*));
     }
 }
-/*
-
-@brief Afegeix un nou thread a la llista de fils del regne.
-*/
-void afegirThread(Regne *r, int comandaN) {
-    if (r->fils == NULL) {
-        r->fils = malloc(sizeof(Fil));
-        r->n_fils = 1;
-    } else {
-        r->fils = realloc(r->fils, (r->n_fils + 1) * sizeof(Fil));
-        r->n_fils++;
-    }
-    r->fils[r->n_fils - 1].comanda = comandaN;
-}
 
 /*
 @brief Fa join als threads del servidor que han acabat amb  thread_complete==1
@@ -264,7 +250,7 @@ void rebreComandaProductes (Trama *t, Regne *r, int client_sock){
         //tornem a obrir el fitxer de comandes per llegir-lo i processar la comanda
         fdCommandes = open(nomFitxer, O_RDONLY);
         if (fdCommandes == -1) {
-            printString(1, "Error reobrint comandes en mode lectura\n");
+            printString(1, "Error opening trade file for reading\n");
             free(nomFitxer);
             return;
         }
@@ -507,8 +493,6 @@ Rebre PLEDGE RESPOND
 
 */
  void processarTramaPledgeRespond(Trama *t, Regne *r,int client_sock) {
-
-    
    
     int n_paraules = 0;
     int n_paraules2 = 0;
@@ -516,81 +500,33 @@ Rebre PLEDGE RESPOND
     char **paraules = tokenizer(t->nom_origen, &n_paraules, ':');
     char **paraules2 = tokenizer(t->data, &n_paraules2, '&');
 
-
     if (n_paraules != 2 || n_paraules2 != 2) {
         freeTokens(paraules, n_paraules);
         freeTokens(paraules2, n_paraules2);
         printString(1, "Pledge respond trama malformed\n");
         return;
     }
-
-
-
-
-    if (strcasecmp(paraules2[0], "ACCEPT") == 0) {
-        //enviar a l'enboy
-        int statusPledgeRespond=1; //ACCEPT
-       
-       
-        for(int i=0;i<r->n_envoys;i++){
-            if(strcmp(r->envoys[i].nomRegneViatge, paraules2[1])==0){ 
-                ForkRegneWritesEnvoy *frwe = malloc(sizeof(ForkRegneWritesEnvoy));
-                frwe->comanda = 5; // enviar pledge respond
-                frwe->indexEnvoy = i;
-                frwe->statusPledgeRespond =statusPledgeRespond;//1 ACCEPT , 0 REJECT
-                strcpy(frwe->ipDest, paraules[0]);
-                frwe->portDest = atoi(paraules[1]);
-                
-                write(r->envoys[i].pipeWrite,frwe, sizeof(ForkRegneWritesEnvoy));
-                return;//!!!!!!!!!!
-            }
-
-        }
-
-        for (int i = 0; i < r->n_rutes; i++) {
-            if (strcmp(r->rutes[i].nomDest,paraules2[1] ) == 0) {
-                if(r->rutes[i].alianca=='P'){  
-                currRuta=i;
-                if (r->rutes[i].alianca == 'T') {
-                    break;
-                }
-                r->rutes[i].alianca = 'S';
-                //if (r->rutes[i].esDirectamentConectat == 0) {
-                    
-                    r->rutes[i].portDest = atoi(paraules[1]);
-                    if (r->rutes[i].ipDest) {
-                        free(r->rutes[i].ipDest);
-                    }
-                    r->rutes[i].ipDest = strdup(paraules[0]); 
-                    
-                    
-                //}
-                char *buffer;
-                asprintf(&buffer, ">>> Alliance with %s forged successfully!\n", r->rutes[i].nomDest);
-                printString(1, buffer);
-                free(buffer);
-                break;
-                }else{
-                    printString(1, "Pledge respond received for non-pending alliance.\n");
-                    break;
-                }
-            
-            }
-        }
-    } else if (strcasecmp(paraules2[0], "REJECT") == 0) {
-        for (int i = 0; i < r->n_rutes; i++) {
-            if (strcmp(r->rutes[i].nomDest, paraules2[1]) == 0) {
-                 currRuta=i;
-                if (r->rutes[i].alianca == 'T') {
-                    break;
-                }
-                r->rutes[i].alianca = 'N';
-                printString(1, "Alliance has been rejected.\n");
-                break;
-            }
-        }
+    int indexEnvoy = trobarEnvoyIndex(r, paraules2[1]);
+       if(indexEnvoy==-1){
+            printString(1, "No envoy found for the specified realm in pledge respond.\n");
+            freeTokens(paraules, n_paraules);
+            freeTokens(paraules2, n_paraules2);
+            return;
     }
-    if(r->rutes[currRuta].alianca=='T'){
+    if (strcasecmp(paraules2[0], "ACCEPT") == 0) {
+        int statusPledgeRespond=1; //ACCEPT
+        ForkRegneWritesEnvoy *frwe= crearForkRegneWritesEnvoy(5,paraules2[1], NULL , indexEnvoy,0,statusPledgeRespond, paraules[0], atoi(paraules[1]));
+        write(r->envoys[indexEnvoy].pipeWrite,frwe, sizeof(ForkRegneWritesEnvoy));
+        free(frwe);
+        
+    } else if (strcasecmp(paraules2[0], "REJECT") == 0) {
+        int statusPledgeRespond=2; //REJECT
+        ForkRegneWritesEnvoy *frwe = crearForkRegneWritesEnvoy(5,paraules2[1], NULL , indexEnvoy,0,2, paraules[0], atoi(paraules[1]));
+        write(r->envoys[indexEnvoy].pipeWrite,frwe, sizeof(ForkRegneWritesEnvoy));
+        free(frwe);
+    }
+    
+    /*if(r->rutes[currRuta].alianca=='T'){
         Trama * nackTrama=crearTrama(0x69, NULL, 0, NULL, 0, NULL);
         write(client_sock, nackTrama, sizeof(Trama));
         free(nackTrama);
@@ -603,7 +539,7 @@ Rebre PLEDGE RESPOND
         write(client_sock, ackTrama, sizeof(Trama));
         free(ackTrama);
         
-    }
+    }*/
     freeTokens(paraules, n_paraules);
     freeTokens(paraules2, n_paraules2);
 }
@@ -814,13 +750,14 @@ AQUI ES PROCESSEN TOTES LES TRAMES A PARTIR DEL TIPUS
               
                 break;
             case 0x26:
-                printString(1, "Trama ping rebuda:\n");
+                //Ping pong
+                Trama *ping=crearTrama(0x26, r->ip, r->port, r->nom, 4, "PONG");
+                enviarTramaSocket(ping, client_sock);
+                free(ping);
+
                 
                 break;
             case 0x31:
-                /*for (int i =0;i<r->n_envoys;i++){
-                    //mirar el nom del regne del envoy , fase 3 no cal
-                }*/
                 int statusACKFitxer=0;
                 int n_paraules = 0;
                 char **paraules = tokenizer(t->data, &n_paraules, '&');
@@ -832,43 +769,30 @@ AQUI ES PROCESSEN TOTES LES TRAMES A PARTIR DEL TIPUS
                     printString(1, "Trama ack fitxer  KO rebuda:\n");
                 }
 
-                int quinEnvoy=-1;
-                printf("Looking for envoy for regne \n");
+                int quinEnvoy=-1;                
                 for(int i=0;i<r->n_envoys;i++){
                     if(r->envoys[i].nomRegneViatge==NULL){
                         continue;
                     }
-                    printf("Comparing envoy regne %s with %s\n", r->envoys[i].nomRegneViatge, paraules[1]);
 
                     if(strcmp(r->envoys[i].nomRegneViatge,paraules[1])==0){
                         quinEnvoy=i;
-
-                        printf("Found matching envoy at index %d\n", quinEnvoy);
                         break;
                     }
                 }
                 if(quinEnvoy!=-1){
-                    r->envoys[quinEnvoy].ackFitxer=statusACKFitxer;
-
-
-                    ForkRegneWritesEnvoy *frwe = malloc(sizeof(ForkRegneWritesEnvoy));
-                    frwe->comanda = 3; // enviar ackFiter
-                    frwe->indexEnvoy = quinEnvoy;
-
-                    frwe->ackStatus =statusACKFitxer;
+                    //r->envoys[quinEnvoy].ackFitxer=statusACKFitxer;
+                    ForkRegneWritesEnvoy *frwe = crearForkRegneWritesEnvoy(3, NULL, NULL, quinEnvoy, statusACKFitxer, 0, NULL, 0);
                     write(r->envoys[quinEnvoy].pipeWrite, frwe, sizeof(ForkRegneWritesEnvoy));
+                    free(frwe);
                 }
                 
-
-
-
                 freeTokens(paraules, n_paraules);
 
                 break;
             case 0x32:
                 int statusACKMD5=0;
                 int n_paraules2 = 0;
-                //printf("data->%s\n", t->data);
                 char **paraules2 = tokenizer(t->data, &n_paraules2, '&');
                  if(strcmp(paraules2[0],"CHECK_OK")==0){
                     statusACKMD5=1;
@@ -876,32 +800,30 @@ AQUI ES PROCESSEN TOTES LES TRAMES A PARTIR DEL TIPUS
                 }else{
                     printString(1,"ERROR: MD5 sum is incorrect. Try again\n");
                 }
+                
                 int quinEnvoy2=-1;
-                printf("Looking for envoy for regne \n");
                 for(int i=0;i<r->n_envoys;i++){
+                    
                     if(r->envoys[i].nomRegneViatge==NULL){
                         continue;
                     }
-                    printf("envoy regne: %s , paraula: %s\n", r->envoys[i].nomRegneViatge, paraules2[1]);
-                    printf("Comparing envoy regne %s with %s\n", r->envoys[i].nomRegneViatge, paraules2[1]);
-
                     if(strcmp(r->envoys[i].nomRegneViatge,paraules2[1])==0){
                         quinEnvoy2=i;
-
-                        printf("Found matching envoy at index %d\n", quinEnvoy2);
                         break;
                     }
                 }
                 if(quinEnvoy2!=-1){
-                    r->envoys[quinEnvoy2].ackMD5SUM=statusACKMD5;
-
- 
-                    ForkRegneWritesEnvoy *frwe = malloc(sizeof(ForkRegneWritesEnvoy));
-                    frwe->comanda = 4; // enviar ackMD5
+                    //r->envoys[quinEnvoy2].ackMD5SUM=statusACKMD5;
+                   /* frwe->comanda = 4; // enviar ackMD5
                     frwe->indexEnvoy = quinEnvoy2;
-                    frwe->ackStatus =statusACKMD5;
+                    frwe->ackStatus =statusACKMD5;*/
+                    ForkRegneWritesEnvoy *frwe = crearForkRegneWritesEnvoy(4, NULL, NULL, quinEnvoy2, statusACKMD5, 0, NULL, 0);
                     write(r->envoys[quinEnvoy2].pipeWrite, frwe, sizeof(ForkRegneWritesEnvoy));
+                    free(frwe);
+                }else{
+                    printString(1, "No matching envoy found for MD5 ACK\n");
                 }
+                freeTokens(paraules2, n_paraules2);
              
                 break;
             case 0x69:

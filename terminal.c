@@ -32,6 +32,8 @@ void exitMs (Regne *r){
 
 */
 
+
+
 void runTerminal (Regne *r, char *fitxerStock){
     char *comanda = NULL;
     int comandaN = -1;
@@ -112,6 +114,7 @@ void runTerminal (Regne *r, char *fitxerStock){
                 break;
             }
             
+            
             switch (comandaN){
                 
                 case -1:
@@ -138,54 +141,37 @@ void runTerminal (Regne *r, char *fitxerStock){
                         break;
                     } 
 
-                    /*if(r->envoys[0].status==NULL){
-                        Thread_pledge *tp = malloc(sizeof(Thread_pledge));
-                        tp->r = r;
-                        tp->n_paraules = n_paraules;
-                        tp->paraules = malloc(n_paraules * sizeof(char *));
-                        tp->indexEnvoy = 0; 
-                        for (int i = 0; i < n_paraules; i++) {
-                            tp->paraules[i] = strdup(paraules[i]);
-                        }
-                        
-                        afegirThread(r, comandaN);
-                        pthread_create(&r->fils[r->n_fils - 1].thread_id, NULL, pledge, (void *)tp);
-                    // pledge (r, paraules);
-                    }else{
-                        printString(1, "Only one pledge may be sworn at a time. Pledge has been withdrawn\n");
-                    }*/
                     int index =pledgeComprovar(r, paraules, n_paraules);
                     if(index==-1) break;
 
+                    int envoyIndex = trobarEnvoyLliure(r);
+                    if(envoyIndex==-1){
+                        printString(1, "All envoys are occupied. Your command must wait\n");
+                        break;
+                    }
+                    if(setEnvoyEnMissio(r, envoyIndex, paraules[1]) == -1) break;
+                    ForkRegneWritesEnvoy *frwe = crearForkRegneWritesEnvoy(0,paraules[1],paraules[2],0,0,0,NULL,0);
+                    r->rutes[index].alianca = 'P';
+                    write(r->envoys[envoyIndex].pipeWrite, frwe, sizeof(ForkRegneWritesEnvoy));
+                    free(frwe);
 
-                    ForkRegneWritesEnvoy *frwe = malloc(sizeof(ForkRegneWritesEnvoy));
-                    frwe->comanda = 0; // PLEDGE
-                    frwe->indexEnvoy = 0;
-                    strncpy(frwe->regneDest, paraules[1], sizeof(frwe->regneDest) - 1);
-                    frwe->regneDest[sizeof(frwe->regneDest) - 1] = '\0';
-                    strncpy(frwe->rutaSegell, paraules[2], sizeof(frwe->rutaSegell) - 1);
-                    frwe->rutaSegell[sizeof(frwe->rutaSegell) - 1] = '\0';
 
-                    r->envoys[0].nomRegneViatge=malloc(strlen(paraules[1])+1);
-                    strcpy(r->envoys[0].nomRegneViatge,paraules[1]);
-                    
-                    write(r->envoys[0].pipeWrite, frwe, sizeof(ForkRegneWritesEnvoy));
-             
                     break;
                 case 3:
 
                     
-                    if(n_paraules == 3){ //enviar envoy!!!!!
+                    if(n_paraules == 3){
                         int index=comprovarlistproducts(r, paraules[2]);
                         if(index==-1) break;
-
-                        ForkRegneWritesEnvoy *frwe = malloc(sizeof(ForkRegneWritesEnvoy));
-                        frwe->comanda = 1; // LIST PRODUCTS
-                        frwe->indexEnvoy = 0;
-                        strncpy(frwe->regneDest, paraules[2], sizeof(frwe->regneDest) - 1);
-                        frwe->regneDest[sizeof(frwe->regneDest) - 1] = '\0';
-                        write(r->envoys[0].pipeWrite, frwe, sizeof(ForkRegneWritesEnvoy));
-                        //listProductsAliat(r, paraules[2]/*,r->exit*/);
+                        int envoyIndex = trobarEnvoyLliure(r);
+                        if(envoyIndex==-1){
+                            printString(1, "All envoys are occupied. Your command must wait\n");
+                            break;
+                        }
+                        if(setEnvoyEnMissio(r, envoyIndex, paraules[2]) == -1) break;
+                        ForkRegneWritesEnvoy *frwe = crearForkRegneWritesEnvoy(1,paraules[2],NULL,0,0,0,NULL,0);
+                        write(r->envoys[envoyIndex].pipeWrite, frwe, sizeof(ForkRegneWritesEnvoy));
+                        free(frwe);
                         break; 
                     } 
                     else if(n_paraules == 2){
@@ -236,6 +222,7 @@ void runTerminal (Regne *r, char *fitxerStock){
                 
                     break;
             }
+
             if(comandaN != 7){
                 printString(1, "$");
             }

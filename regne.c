@@ -60,17 +60,6 @@ void listRealms (Regne *r){
 }*/
 
 
-void freeThreadPledge(Thread_pledge *tp) {
-    if (!tp) return;
-    if (tp->paraules) {
-        for (int i = 0; i < tp->n_paraules; i++) {
-            free(tp->paraules[i]);
-        }
-        free(tp->paraules);
-    }
-    free(tp);
-}
-
 int obrirFitxerSigil(char *rutaSegell) {
     char *filenameSigil = malloc(FILENAME_SIGIL_SIZE * sizeof(char));
     if (!filenameSigil) return -1;
@@ -85,237 +74,6 @@ int obrirFitxerSigil(char *rutaSegell) {
     free(filenameSigil);
     return fdSigil;
 }
-/*
-@brief Funció que gestiona l'enviament d'un pledge a un altre regne.
-@param arg Punter a la estructura Thread_pledge que conté la informació necessària per
-               processar el pledge.
-
-*/
-void* pledge(void *arg){
-    Thread_pledge *tp = (Thread_pledge *) arg;
-    Regne *r = tp->r;
-    char **paraules = tp->paraules;
-    //comprovar que el regne existeix
-    //printf("r->nom: %s == paraules[1]: %s\n", r->nom, paraules[1]);
-    if (!comprovarRegneExisteix(r, paraules[1])) {
-        printString(1, "No such realm exists. The pledge is hereby withdrawn. Remember is case sensitive\n");
-        freeThreadPledge(tp);
-        return NULL;
-    }
-
-    //obrir fitxer segell per comprovar que existeix
-    /*char *filename = malloc(FILENAME_SIGIL_SIZE * sizeof(char));
-    if (!filename) {
-        freeThreadPledge(tp);
-        return NULL;
-    }*/
-    //snprintf(filename, FILENAME_SIGIL_SIZE, "segells/%s", paraules[2]);
-    char *filename;
-    asprintf(&filename, "segells/%s", paraules[2]);
-    int fd = open(filename, O_RDONLY);
-    if (fd == -1) {
-        printString(1, "Sigil doesn't exist\n");
-        free(filename);
-        freeThreadPledge(tp);
-        return NULL;
-    }
-    
-    //comprovar si ja tenim una aliança o pledge pendent
-    int indexRuta = -1;
-    for (int i = 0; i < r->n_rutes; i++) {
-        if (strcmp(r->rutes[i].nomDest, paraules[1]) == 0) {
-            if (r->rutes[i].alianca == 'S') {
-                printString(1, "You are already allied with this Realm.\n");
-                close(fd);
-                free(filename);
-                freeThreadPledge(tp);
-                return NULL;
-            }
-            if (r->rutes[i].alianca == 'P') {
-                printString(1, "You have already sent an alliance request to this Realm.\n");
-                close(fd);
-                free(filename);
-                freeThreadPledge(tp);
-                return NULL;
-            }
-            if (r->rutes[i].alianca == 'O') {
-                printString(1, "You have a pending pledge from that Maester.\n");
-                close(fd);
-                free(filename);
-                freeThreadPledge(tp);
-                return NULL;
-            }
-
-            
-            indexRuta = i;
-            break;
-        }
-    }
-    if (indexRuta == -1) {
-        printString(1, "Route not found for this Realm.\n");
-        close(fd);
-        free(filename);
-        freeThreadPledge(tp);
-        return NULL;
-    }
-    //crear el directori si no esta creat 
-    crearDirectori(r->rutaArxius);
-    //reiniciem l'envoy per si de cas
-    resetEnvoy(&r->envoys[tp->indexEnvoy]);
-    //Aqui assignem l'envoy que ara esta fent un pledge
-    setStatusEnvoy(&r->envoys[tp->indexEnvoy], "pledge");
-    r->rutes[indexRuta].alianca = 'P';
-    
-    //calcular MD5 i size per posar a la trama 0x001
-    char data[DATA_SIZE];
-    int size = getSize(fd);
-    char *md5 = calcularMD5SUM(filename);
-    if (!md5) {
-        printString(1, "Error calculant MD5\n");
-        close(fd);
-        free(filename);
-        resetEnvoy(&r->envoys[tp->indexEnvoy]);
-        freeThreadPledge(tp);
-        return NULL;
-    }
-    snprintf(data, DATA_SIZE, "%s&%s&%d&%s", r->nom, paraules[2], size, md5);
-    
-    //enviar la trama 0x01 per hops
-    Trama *trama = crearTrama(0x01, r->ip, r->port, paraules[1], strlen(data), data);
-    int socket = enviarTramaDinamica(trama, r, 0); // trama s'allibera aquí
-    if (socket < 0) {
-        printString(1, "Cannot send pledge request.\n");
-        resetEnvoy(&r->envoys[tp->indexEnvoy]);
-        r->rutes[indexRuta].alianca = 'N'; //N de none
-        freeThreadPledge(tp);
-        return NULL;
-    }
-
-    close(fd);
-    free(filename);
-    free(md5);
-    if(r->envoys[0].ackFitxer==2){//si hi ha hagut un error enviant la trama 0x01
-        printString(1, "Error sending pledge request. Cannot conect to realm.");
-        r->rutes[indexRuta].alianca='N'; //N de none
-        resetEnvoy(&r->envoys[tp->indexEnvoy]);
-        freeThreadPledge(tp);
-        return NULL;
-    }
-     
-    char *buffer = NULL;
-    if (asprintf(&buffer, "Pledge sent to %s. Envoy 1 is on its way.\n", paraules[1]) != -1) {
-        printString(1, buffer);
-        free(buffer);
-    }
-
-    int startPos = 0;
-    int fdSigil = obrirFitxerSigil(paraules[2]);
-    if (fdSigil == -1) {
-        printString(1, "Error opening sigil file\n");
-        r->rutes[indexRuta].alianca = 'N';
-        resetEnvoy(&r->envoys[tp->indexEnvoy]);
-        freeThreadPledge(tp);
-        return NULL;
-    }
-
-    usleep(100000);//espera per si de cas per que arribi la trama anterior correctament (ja que si no no fa un reset del fitxer)
-    //Començem a enviar el segell
-    struct timeval startTime, endTime;
-    gettimeofday(&startTime, NULL);
-    printString(1, "Sending sigil ...\n");
-    while (startPos <= size) {
-      
-        usleep(10000);
-        //usleep(1000);
-
-        if(r->envoys[0].ackFitxer==2){//si hi ha hagut un error enviant la trama 0x02
-            printString(1, "Error sending sigil data. Cannot conect to realm.");
-            r->rutes[indexRuta].alianca='N'; //N de none
-            close(fdSigil);
-            resetEnvoy(&r->envoys[tp->indexEnvoy]);
-            freeThreadPledge(tp);
-            
-            return NULL;
-        }
-        if (r->exit && *(r->exit)) {//per si fa control C
-            close(fdSigil);
-            resetEnvoy(&r->envoys[tp->indexEnvoy]);
-            freeThreadPledge(tp);
-            return NULL;
-        }
-        int chunk = (startPos + 275 > size) ? (size - startPos) : 275;//si supera el size ajustem el chunk ja que la ultima trama  no sera 275
-        if (chunk <= 0) break;
-        char *sigilData = readFd(fdSigil, startPos, chunk);//llegim el fitxer del segell marcat per el if anterior(chunk pot ser mes petit que 275 o 275 maxim)
-        if (!sigilData) {
-            printString(1, "Error reading sigil data\n");
-            close(fdSigil);
-            r->rutes[indexRuta].alianca = 'N';
-            resetEnvoy(&r->envoys[tp->indexEnvoy]);
-            freeThreadPledge(tp);
-            return NULL;
-        }
-        //crear i enviar la trama 0x02 per hops , es la trama per enviar el segell trama a trama
-        trama = crearTrama(0x02, r->ip, r->port, r->rutes[indexRuta].nomDest, chunk, sigilData);
-        int socket = enviarTramaDinamica(trama, r, 0);
-
-        if (socket < 0) {
-            printString(1, "Error sending sigil trama.\n");
-            free(sigilData);
-            close(fdSigil);
-            r->rutes[indexRuta].alianca = 'N';
-            resetEnvoy(&r->envoys[tp->indexEnvoy]);
-            freeThreadPledge(tp);
-            return NULL;
-        }
-
-        free(sigilData);
-        startPos += chunk;
-        joinThreadServidor(r);
-    }
-  gettimeofday(&endTime, NULL);
-    long tempsMs = (endTime.tv_sec - startTime.tv_sec) * 1000 + (endTime.tv_usec - startTime.tv_usec) / 1000;
-    char *misstemps;
-    asprintf(&misstemps, "Sigil sent. (%ld ms)\n", tempsMs);
-    printString(1, misstemps);
-    free(misstemps);
-    close(fdSigil);
-    
-    //aqui vol dir que les acks estan be(ackFitxer i md5sum), per tant toca esperar el timeout de 2min per que faigi el pledge respond 
-    //el servidor rebre el pledge respond i modificara 
-    time_t inici = time(NULL);
-    const double timeout = 120.0;
-
-    while (1) {
-        sleep(1);
-        if (r->exit && *(r->exit)) break;
-        if (r->rutes[indexRuta].alianca == 'S' || r->rutes[indexRuta].alianca == 'N') {//si ja ha rebut el pledge respond haruia de ser S o N, sino encara esta pendent
-            break;
-        }
-        if (r->envoys[0].ackFitxer==2 || r->envoys[0].ackMD5SUM==2) {
-            r->rutes[indexRuta].alianca = 'N';
-            break;
-        }
-        if (difftime(time(NULL), inici) >= timeout) {
-            char *tmp = NULL;
-            if (asprintf(&tmp, "Pledge to %s timed out.\n", r->rutes[indexRuta].nomDest) != -1) {
-                printString(1, tmp);
-                free(tmp);
-            }
-            r->rutes[indexRuta].alianca = 'T'; // T de timeout
-            break;
-        }
-    }
-    //envoy acaba pledge
-    
-    resetEnvoy(&r->envoys[tp->indexEnvoy]);
-    freeThreadPledge(tp);
-
-
-    return NULL;
-}
-
-
-
 
                 
 /*
@@ -357,6 +115,8 @@ void pledgeRespond(Regne *r, char **paraules, int n_paraules) {
         printString(1, "No alliance request.\n");
         return;
     }
+    
+
 
     if (r->rutes[trobat].ackFitxerStatus == 0 || r->rutes[trobat].ackMD5SUMStatus == 0) {
         //printf("ackFitxerStatus: %d , ackMD5SUMStatus: %d\n",r->rutes[trobat].ackFitxerStatus,r->rutes[trobat].ackMD5SUMStatus);
@@ -388,13 +148,34 @@ void pledgeRespond(Regne *r, char **paraules, int n_paraules) {
 
             //enviem trama 0x03 amb accept
             snprintf(data, DATA_SIZE, "ACCEPT&%s", r->nom);
+
+
+            //EL PING PONG  serveix per comprovar que l'aliat esta actiu abans d'establir l'aliança , ja que sino dona errros més endavant
+            //ho he fet a la fase 4
+
+            //PING
+            Trama* ping = crearTrama(0x26, r->ip, r->port, r->rutes[trobat].nomDest, 0, NULL);
+            int socketPing=enviarTramaDirecteSenseTancar(ping, r->rutes[trobat].portDest, r->rutes[trobat].ipDest, r->rutes[trobat].nomDest);//sallibera trama ping aqui
+            //PONG
+            Trama * pong = crearTrama(0x00,NULL,0,NULL,0,NULL);
+            int n1 = read(socketPing, pong, sizeof(Trama));
+            close(socketPing);
+            if (n1 <= 0 || pong->tipus != 0x26) {
+                free(pong);
+                printString(1, "Did not receive PONG from ally. Alliance cannot be established.\n");
+                r->rutes[trobat].alianca = 'N';
+                return; 
+            }  
+            free(pong);
+            
+            
             Trama *t_enviar = crearTrama(0x03, r->ip, r->port,r->rutes[trobat].nomDest, strlen(data), data);
             int socket = enviarTramaDirecteSenseTancar(t_enviar,r->rutes[trobat].portDest,r->rutes[trobat].ipDest,paraules[2]);
             /*if (socket < 0) {
                 return;
             }*/
             //esperar ack/nack
-            Trama *t = malloc(sizeof(Trama));
+            //Trama *t = malloc(sizeof(Trama));
             /*if (!t) {
                 close(socket);
                 return;
@@ -431,20 +212,19 @@ void pledgeRespond(Regne *r, char **paraules, int n_paraules) {
             close(socket);
             free(t);
             return;
+            */
         }
 
         else {
             printString(1, "Please respond with accept or reject.\n");
             return;
-        }*/
+        }
     }
-}
-
     else {
         printString(1, "No alliance request.\n");
         return;
     }
-}
+} 
 
 
 
@@ -506,9 +286,20 @@ void notificarDesconnexioAliances(Regne *r){
     ENVOY STATUS
 */
 
-void envoyStatus (__attribute__((unused)) Regne *r){
+void envoyStatus (Regne *r){
 
-    printString(1, "Command OK\n");
+    for (int i = 0; i < r->n_envoys; i++){
+        char *buffer;
+        if (r->envoys[i].status == 1){
+            asprintf(&buffer, "- Envoy %d: ON MISSION to %s\n", i + 1, r->envoys[i].nomRegneViatge);
+        }
+        else {
+            asprintf(&buffer, "- Envoy %d: FREE\n", i + 1);
+        }
+        printString(1, buffer);
+        free(buffer);
+    }
+    
 }
 
 
@@ -615,20 +406,38 @@ char * escoltarTot(fd_set *master_set, int *max_fd, Regne *r) {
 void processarMissatgeEnvoy(Regne *r, EnvoyWritesRegne *msg) {
     Envoy *e = &r->envoys[msg->indexEnvoy];
 
-    printf("Processing message from Envoy %d: Command %d\n", msg->indexEnvoy, msg->comanda);
+    int indexRuta = msg->indexRuta;
+    if (indexRuta == -1) {
+        printString(1, "Route not found for the specified Realm.\n");
+        return;
+    }
+    printf( "Ha arribat un missatge del envoy al regne.\n");
     switch (msg->comanda) {
         case 1://pledge
-        printf("msg->comanda -> %d\n", msg->comanda);
             if(msg->statusPledge==1){//accpet
-
-                r->rutes[msg->indexRuta].alianca = 'S'; 
+                
+                if (r->rutes[indexRuta].alianca == 'T') {
+                        break;
+                }
+                r->rutes[indexRuta].alianca = 'S';
+                r->rutes[indexRuta].portDest = msg->portDest;
+                r->rutes[indexRuta].ipDest = strdup(msg->ipDest); 
+                char *buffer;
+                asprintf(&buffer, ">>> Alliance with %s forged successfully!\n", r->rutes[indexRuta].nomDest);
+                printString(1, buffer);
+                free(buffer);
             }else if(msg->statusPledge==2){ //reject
 
+                printString(1, "Pledge rejected by the other Realm.\n");
                 r->rutes[msg->indexRuta].alianca = 'N'; 
 
-            }else{//timeout
-            r->rutes[msg->indexRuta].alianca = 'T'; 
-
+            }else if (msg->statusPledge==0){//timeout 
+                r->rutes[msg->indexRuta].alianca = 'T'; 
+                char *tmp = NULL;
+                if (asprintf(&tmp, "Pledge to %s timed out.\n",  r->rutes[indexRuta].nomDest) != -1) {
+                    printString(1, tmp);
+                    free(tmp);
+                }
             }
             
             break;
@@ -638,21 +447,15 @@ void processarMissatgeEnvoy(Regne *r, EnvoyWritesRegne *msg) {
 
         case 3://send 
             break;
+        case 4://probelma (acks,conexions, etc) , simplemetn cancelar la missio
+                r->rutes[indexRuta].alianca = 'N';
+                printf("algo ha anat malament a l'envoy, missio cancel.lada\n");
+        break;
     }
+    setEnvoyLliure(r, msg->indexEnvoy);
+
+
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 int pledgeComprovar(Regne *r, char **paraules, int n_paraules){
 
@@ -696,7 +499,7 @@ int pledgeComprovar(Regne *r, char **paraules, int n_paraules){
 
 
 //el regne esta desactualitzat !!! nome
-void pledgeEnvoyTramaInicial(char filenameSigil[30] , char nomDesti[50], Regne *r, int indexRuta){
+int pledgeEnvoyTramaInicial(char filenameSigil[30] , char nomDesti[50], Regne *r){
 
    char *filename;
     asprintf(&filename, "segells/%s", filenameSigil);
@@ -704,7 +507,7 @@ void pledgeEnvoyTramaInicial(char filenameSigil[30] , char nomDesti[50], Regne *
     if (fd == -1) {
         printString(1, "Sigil doesn't exist\n");
         free(filename);
-        return NULL;
+        return 0;
     }
 
     char data[DATA_SIZE];
@@ -715,18 +518,18 @@ void pledgeEnvoyTramaInicial(char filenameSigil[30] , char nomDesti[50], Regne *
         close(fd);
         free(filename);
 
-        return NULL;
+        return 0;
     }
     snprintf(data, DATA_SIZE, "%s&%s&%d&%s", r->nom, filename, size, md5);
 
+    free(filename);
  
 
      Trama *trama = crearTrama(0x01, r->ip, r->port,nomDesti , strlen(data), data);
     int socket = enviarTramaDinamica(trama, r, 0); // trama s'allibera aquí
     if (socket < 0) {
         printString(1, "Cannot send pledge request.\n");
-        //r->rutes[indexRuta].alianca = 'N'; //N de none
-        return NULL;
+        return 0;
     }
 
     close(fd);
@@ -738,9 +541,9 @@ void pledgeEnvoyTramaInicial(char filenameSigil[30] , char nomDesti[50], Regne *
         printString(1, buffer);
         free(buffer);
     }
-    return ;
+    return 1;
 }
-void pledgeEnvoyEnviarSigil(char filenameSigil[30] , char nomDesti[50], Regne *r, int indexRuta,int *exitflag){
+int pledgeEnvoyEnviarSigil(char filenameSigil[30] , char nomDesti[50], Regne *r, int indexRuta,int *exitflag){
 
     int startPos = 0;
     char *filename;
@@ -749,7 +552,7 @@ void pledgeEnvoyEnviarSigil(char filenameSigil[30] , char nomDesti[50], Regne *r
     if (fdSigil == -1) {
         printString(1, "Sigil doesn't exist\n");
         free(filename);
-        return NULL;
+        return -1;
     }
 
     Trama *trama;
@@ -761,7 +564,7 @@ void pledgeEnvoyEnviarSigil(char filenameSigil[30] , char nomDesti[50], Regne *r
         //usleep(1000);
         if (*exitflag) {
             close(fdSigil);
-            return NULL;
+            return 0;
         }
         int chunk = (startPos + 275 > size) ? (size - startPos) : 275;//si supera el size ajustem el chunk ja que la ultima trama  no sera 275
         if (chunk <= 0) break;
@@ -770,7 +573,7 @@ void pledgeEnvoyEnviarSigil(char filenameSigil[30] , char nomDesti[50], Regne *r
             printString(1, "Error reading sigil data\n");
             close(fdSigil);
             //r->rutes[indexRuta].alianca = 'N';
-            return NULL;
+            return -1;
         }
         //crear i enviar la trama 0x02 per hops , es la trama per enviar el segell trama a trama
         trama = crearTrama(0x02, r->ip, r->port,nomDesti , chunk, sigilData);
@@ -781,14 +584,16 @@ void pledgeEnvoyEnviarSigil(char filenameSigil[30] , char nomDesti[50], Regne *r
             free(sigilData);
             close(fdSigil);
             //r->rutes[indexRuta].alianca = 'N';
-            return NULL;
+            return -1;
         }
 
         free(sigilData);
         startPos += chunk;
     }
     free(filename);
-    return NULL;
+    close(fdSigil);
+
+    return 1;
 }
 
 int pledgeEnvoyWaitPledgeRespond(Regne *r, char nomDest[50], int *exitflag,int *pledgeRespondRebut){
@@ -817,66 +622,106 @@ int pledgeEnvoyWaitPledgeRespond(Regne *r, char nomDest[50], int *exitflag,int *
     }
     return 0;
 }
-    
-/*
-    
 
 
-    //espera per si de cas per que arribi la trama anterior correctament (ja que si no no fa un reset del fitxer)
-    //Començem a enviar el segell
-    struct timeval startTime, endTime;
-    gettimeofday(&startTime, NULL);
+ForkRegneWritesEnvoy *crearForkRegneWritesEnvoy(int comanda,const char *regneDest,const char *rutaSegell,int indexEnvoy,int ackStatus,int statusPledgeRespond,const char *ipDest,int portDest) {
+    ForkRegneWritesEnvoy *frwe = malloc(sizeof(ForkRegneWritesEnvoy));
     
-    
-    
-    gettimeofday(&endTime, NULL);
-    long tempsMs = (endTime.tv_sec - startTime.tv_sec) * 1000 + (endTime.tv_usec - startTime.tv_usec) / 1000;
-    char *misstemps;
-    asprintf(&misstemps, "Sigil sent. (%ld ms)\n", tempsMs);
-    printString(1, misstemps);
-    free(misstemps);
-    close(fdSigil);
-    
-    //aqui vol dir que les acks estan be(ackFitxer i md5sum), per tant toca esperar el timeout de 2min per que faigi el pledge respond 
-    //el servidor rebre el pledge respond i modificara 
-    time_t inici = time(NULL);
-    const double timeout = 120.0;
+    if (frwe == NULL) {
+        printString(1, "Error allocating memory for ForkRegneWritesEnvoy\n");
+        return NULL;
+    }
+    memset(frwe, 0, sizeof(ForkRegneWritesEnvoy));
 
-    while (1) {
-        sleep(1);
-        if (r->exit && *(r->exit)) break;
-        if (r->rutes[indexRuta].alianca == 'S' || r->rutes[indexRuta].alianca == 'N') {//si ja ha rebut el pledge respond haruia de ser S o N, sino encara esta pendent
+    frwe->comanda = comanda;
+    frwe->indexEnvoy = indexEnvoy;
+    frwe->ackStatus = ackStatus;
+    frwe->statusPledgeRespond = statusPledgeRespond;
+    frwe->portDest = portDest;
+
+    if (regneDest != NULL) {
+        strncpy(frwe->regneDest, regneDest, sizeof(frwe->regneDest) - 1);
+        frwe->regneDest[sizeof(frwe->regneDest) - 1] = '\0';
+    } else {
+        frwe->regneDest[0] = '\0';
+    }
+
+    if (rutaSegell != NULL) {
+        strncpy(frwe->rutaSegell, rutaSegell, sizeof(frwe->rutaSegell) - 1);
+        frwe->rutaSegell[sizeof(frwe->rutaSegell) - 1] = '\0';
+    } else {
+        frwe->rutaSegell[0] = '\0';
+    }
+
+    if (ipDest != NULL) {
+        strncpy(frwe->ipDest, ipDest, sizeof(frwe->ipDest) - 1);
+        frwe->ipDest[sizeof(frwe->ipDest) - 1] = '\0';
+    } else {
+        frwe->ipDest[0] = '\0';
+    }
+
+    return frwe;
+}
+
+
+int trobarEnvoyIndex(Regne *r, const char *regneDest) {
+    int indexEnvoy = -1;
+    for (int i = 0; i < r->n_envoys; i++)
+    {
+        if (strcmp(r->envoys[i].nomRegneViatge, regneDest) == 0) {
+            indexEnvoy = i;
             break;
         }
-        if (r->envoys[0].ackFitxer==2 || r->envoys[0].ackMD5SUM==2) {
-            r->rutes[indexRuta].alianca = 'N';
+    }
+    return indexEnvoy; 
+}
+int trobarRutaIndex(Regne *r, const char *regneDest) {
+    int indexRuta = -1;
+    for (int i = 0; i < r->n_rutes; i++)
+    {
+        if (strcmp(r->rutes[i].nomDest, regneDest) == 0) {
+            indexRuta = i;
             break;
         }
-        if (difftime(time(NULL), inici) >= timeout) {
-            char *tmp = NULL;
-            if (asprintf(&tmp, "Pledge to %s timed out.\n", r->rutes[indexRuta].nomDest) != -1) {
-                printString(1, tmp);
-                free(tmp);
-            }
-            //TODO: aqui hem de comunicar que ha fet timeout
-           // r->rutes[indexRuta].alianca = 'T'; // T de timeout
-            break;
+    }
+    return indexRuta;
+}
+int trobarEnvoyLliure(Regne *r) {
+    for (int i = 0; i < r->n_envoys; i++) {
+        if (r->envoys[i].status == 0) {//si esta lliure  el envoy ...
+            return i;
         }
-    }*/
-    
+    }
+    return -1; 
+}
+
+int setEnvoyEnMissio(Regne *r, int indexEnvoy, const char *regneDest) {
+    if (indexEnvoy < 0 || indexEnvoy >= r->n_envoys || regneDest == NULL) {
+        printString(1, "Invalid envoy index\n");
+        return -1;
+    }
+    r->envoys[indexEnvoy].status = 1; // 1 = ON MISSION
+    r->envoys[indexEnvoy].nomRegneViatge = malloc(strlen(regneDest) + 1);
+    if (r->envoys[indexEnvoy].nomRegneViatge == NULL) {
+        printString(1, "Error allocating memory for envoy mission\n");
+        r->envoys[indexEnvoy].status = 0;
+        return -1;
+    }
+    strcpy(r->envoys[indexEnvoy].nomRegneViatge, regneDest);
+    return 0;
+}
+int setEnvoyLliure (Regne *r, int indexEnvoy) {
+    if (indexEnvoy < 0 || indexEnvoy >= r->n_envoys) {
+        printString(1, "Invalid envoy index\n");
+        return -1;
+    }
+    r->envoys[indexEnvoy].status = 0; // 0 = lliure
+    if (r->envoys[indexEnvoy].nomRegneViatge != NULL) {
+        free(r->envoys[indexEnvoy].nomRegneViatge);
+        r->envoys[indexEnvoy].nomRegneViatge = NULL;
+    }
+    return 0;
+}
 
 
-/*void* pledge(void *arg){
-   
 
-    //TODO: aixo ho fara el maester quan fagi el write cap el envoy
-    r->rutes[indexRuta].alianca = 'P';
-    
-    //calcular MD5 i size per posar a la trama 0x001
-    
-    
-    //enviar la trama 0x01 per hops
-   
-
-    return NULL;
-}*/

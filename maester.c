@@ -42,31 +42,23 @@ int main (int argc, char *argv[]){
 
 
     Regne *r = extractInfo (argv[1]);
-    key_t shm_key = ftok(r->nom, 1);
-    int shmid = shmget(shm_key, sizeof(shared_data), IPC_CREAT | 0666);
-    shared_data *shm = (shared_data *)shmat(shmid, NULL, 0);
-
-
-    printf("Maester of %s starting with PID %d , nenvoys %d\n", r->nom, getpid(), r->n_envoys);
     
     for (int i = 0; i < r->n_envoys; i++) {
 
         int pipePareFill[2];
         int pipeFillPare[2];
         if (pipe(pipePareFill) == -1) {
-            perror("pipe pare->fill");
             return -1; 
         }
 
         if (pipe(pipeFillPare) == -1) {
-            perror("pipe fill->pare");
             return -1;
         }
 
         pid_t pid = fork();
         r->envoys[i].pid = pid;
         if (pid < 0) {
-            perror("fork");
+            printString(1, "Error forking envoy process\n");
             return -1;
         }
 
@@ -74,16 +66,17 @@ int main (int argc, char *argv[]){
             close(pipePareFill[1]); 
             close(pipeFillPare[0]);
 
-            runenvoy(shm_key,pipePareFill[0], pipeFillPare[1], r); 
+            runenvoy(pipePareFill[0], pipeFillPare[1], r); 
 
+            freeRegne(r);
             _exit(0);
         }
 
         close(pipePareFill[0]); 
         close(pipeFillPare[1]);
 
-        r->envoys[i].pipeWrite = pipePareFill[1]; // escriure al envoy
-        r->envoys[i].pipeRead  = pipeFillPare[0]; // llegir del envoy
+        r->envoys[i].pipeWrite = pipePareFill[1]; 
+        r->envoys[i].pipeRead  = pipeFillPare[0]; 
     }
     
     
@@ -100,20 +93,21 @@ int main (int argc, char *argv[]){
     //iniciar terminal
     runTerminal(r, fitxerStock);
 
-    for(int i=0;i<r->n_fils;i++){
-        pthread_join(r->fils[i].thread_id,NULL);
-    }
     for(int i=0;i<r->n_serverThreads;){
         close(r->st[i]->client_fd);
         pthread_join(r->st[i]->thread_id, NULL);
         removeThreadServidor(r, i); 
     }
 
+    for (int j = 0; j < r->n_envoys; j++) {//tancar pipes i esperar processos envoy
+            close(r->envoys[j].pipeRead);
+            close(r->envoys[j].pipeWrite);
+            waitpid(r->envoys[j].pid, NULL, 0);
+    }
+
+
     close(r->fd_server);
     freeRegne(r);
-    if (shmctl(shmid, IPC_RMID, NULL) == -1) {
-        perror("shmctl IPC_RMID");
-    }
 
     return 0;     
 }

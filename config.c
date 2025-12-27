@@ -88,6 +88,7 @@ void freeRuta(Ruta r){
    
 }
 
+
 void freeRegne(Regne *r){
 
     if (r == NULL) return;
@@ -99,7 +100,7 @@ void freeRegne(Regne *r){
         free(r->rutaArxius);
     }
 
-    if (r->ip != NULL){
+    if (r->ip != NULL){ 
         free(r->ip);
     }
 
@@ -114,13 +115,11 @@ void freeRegne(Regne *r){
     if (r->n_envoys != 0){
         for (int i = 0; i < r->n_envoys; i++){
             freeEnvoy(r->envoys[i]);
+
         }
         free(r->envoys);
     }
-    //free(r->exit);
-    
-     free(r->fils);
-     r->fils = NULL;        
+
     free(r->st); 
     free(r);
 
@@ -135,8 +134,8 @@ void initializeEnvoy (Envoy *e){
 
     e->status = NULL;
     e->nomRegneViatge = NULL;
-    e->ackFitxer = 0;     
-    e->ackMD5SUM = 0;
+    //e->ackFitxer = 0;     
+    //e->ackMD5SUM = 0;
 }
 
 void initializeRuta (Ruta *r){
@@ -164,8 +163,7 @@ void initializeRegne (Regne *r){
     r->rutes = NULL;
     r->fd_server = -1;
     r->exit = 0;
-    r->fils = NULL;
-    r->n_fils = 0;
+
     r->st = NULL;
     r->n_serverThreads = 0;
 
@@ -182,11 +180,8 @@ void envoyCpy (Envoy *dest, Envoy *org){
     if (dest->status != NULL){
         free(dest->status);
     }
-    if (org->status != NULL){
-        dest->status = malloc ((strlen(org->status) + 1) * sizeof(char));
-        strcpy(dest->status, org->status);
-    }
-
+    
+    dest->status=org->status ;
     if (dest->nomRegneViatge != NULL){
         free(dest->nomRegneViatge);
     }
@@ -194,8 +189,8 @@ void envoyCpy (Envoy *dest, Envoy *org){
         dest->nomRegneViatge = malloc ((strlen(org->nomRegneViatge) + 1) * sizeof(char));
         strcpy(dest->nomRegneViatge, org->nomRegneViatge);
     }
-    dest->ackFitxer = org->ackFitxer;
-    dest->ackMD5SUM = org->ackMD5SUM;
+    //dest->ackFitxer = org->ackFitxer;
+    //dest->ackMD5SUM = org->ackMD5SUM;
 
 }
 
@@ -283,41 +278,7 @@ void cpyProducte (Producte *dest, Producte *org){
 
 }
 
-/*
-@brief Posa un estatus a un envoy
-@param *e el envoy
-@param *text el estatus que volem posar
-*/
 
-void setStatusEnvoy(Envoy *e, const char *text) {
-    if (!e) return;
-
-    if (e->status != NULL) {
-        free(e->status);
-        e->status = NULL;
-    }
-
-    if (text) {
-        e->status = malloc(strlen(text) + 1);
-        if (e->status) {
-            strcpy(e->status, text);
-        }
-    }
-}
-
-/*
-@brief reseteja un evoy
-@param *e el envoy a resetejar
-*/
-
-void resetEnvoy(Envoy *e) {
-    if (e->status) {
-        free(e->status);
-        e->status = NULL;
-    }
-    e->ackFitxer = 0;
-    e->ackMD5SUM = 0;
-}
 
 /*
 @brief Mira si un Maester existeix

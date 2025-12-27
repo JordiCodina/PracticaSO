@@ -285,12 +285,12 @@ int llegirComandesTrade(Producte *stock, int *n_stock, int fdCommandes){
             }
 }
 
-void comprovarSendTrade( char* nomRegneDest, char *nomMaester, Producte *productes, int numProductes, char *rutaArxius, Regne *r) {
+int comprovarSendTrade( char* nomRegneDest, char *nomMaester, Producte *productes, int numProductes, char *rutaArxius, Regne *r) {
 
 
     if (!nomRegneDest || !nomMaester || !productes || numProductes <= 0) {
         printString(1, "Cannot send trade: missing information\n");
-        return;
+        return -1;
     }
     //comprovar que el regne existeix i es aliat
     int indexRuta=-1;
@@ -303,7 +303,7 @@ void comprovarSendTrade( char* nomRegneDest, char *nomMaester, Producte *product
     if(r->rutes[indexRuta].alianca!='S'){    
         if(r->rutes[indexRuta].alianca=='I'){
             printString(1, "Allied is inactive.Cannot send trade.\n");    
-            return;
+            return -1;
         }
     }
     //per si de cas creem directori i el fitxer de comandes i els posem a dins
@@ -313,7 +313,7 @@ void comprovarSendTrade( char* nomRegneDest, char *nomMaester, Producte *product
     int fd=crearFitxerComandes(nomFitxer);//aqui crees el fitxer reiniciantlo 
     if(fd==-1){
         free(nomFitxer);
-        return;
+        return -1;
     }
     char *miss2; 
     for (int i = 0; i <numProductes; i++) { 
@@ -323,26 +323,17 @@ void comprovarSendTrade( char* nomRegneDest, char *nomMaester, Producte *product
         free(miss2); 
     } 
     close(fd);
+    return indexRuta;
 }
 
-void sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r) {
+int sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r,int indexRuta) {
 
-    int indexRuta=-1;
-    for(int i=0;i<r->n_rutes;i++){
-        if(strcmp(r->rutes[i].nomDest,nomRegneDest)==0){            
-            indexRuta=i;
-            break;
-        }
-    }
-    if(indexRuta<0){ 
-        printString(1, "Error: route to that Realm not found.\n");
-        return;
-    }
+    
     int fdList=open(nomFitxer, O_RDONLY);
     if(fdList<0){
         printString(1, "Error opening trade file to read\n");
         free(nomFitxer);
-        return;
+        return -1;
     }
     //preparar dades per enviar la trama 0x14
     int size=getSize(fdList);
@@ -351,7 +342,7 @@ void sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r) {
         printString(1, "Error calculating MD5 for trade file\n");
         close(fdList);
         free(nomFitxer);
-        return;
+        return -1;
     }
     char data[275];
     snprintf(data, sizeof(data), "%s&%d&%s", nomFitxer, size, md5);
@@ -363,7 +354,7 @@ void sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r) {
         printString(1, "Error sending trade request to ally. Probably is disconnected.\n");
         close(fdList);
         free(nomFitxer);
-        return;
+        return -1;
     }
     //eseperar ack/nack de la comanda
     Trama * ackPeticioComanda=crearTrama(0, NULL, 0, NULL, 0, NULL);
@@ -374,14 +365,14 @@ void sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r) {
         close(fdList);
         free(nomFitxer);
         close(socket);
-        return;
+        return -1;
     }
     if (ackPeticioComanda->tipus != 0x31) {  
         printString(1, "Trade request denied by ally.\n");
         close(fdList);
         free(nomFitxer);
         free(ackPeticioComanda);
-        return;
+        return -1;
     }
     free(ackPeticioComanda);
 
@@ -396,7 +387,7 @@ void sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r) {
                 close(fdList);
                 close(socket);
                 free(nomFitxer);
-                return;
+                return 0;
             }
             if(startPos+275>size){
                  
@@ -423,7 +414,7 @@ void sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r) {
             printString(1, "Did not receive ACK/NACK for trade list.\n");
             free(nomFitxer);
             close(socket);
-            return;
+            return -1;
         }
         int n_paraules=0;
         char **paraules=tokenizer(tramaPeticioComandaAckmd5->data, &n_paraules, '&');
@@ -432,7 +423,8 @@ void sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r) {
             free(tramaPeticioComandaAckmd5);
             free(nomFitxer);
             close(socket);
-            return;
+            freeTokens(paraules, n_paraules);
+            return -1;
         }
         freeTokens(paraules, n_paraules);
         free(tramaPeticioComandaAckmd5);        
@@ -446,7 +438,7 @@ void sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r) {
         free(nomFitxer);
         free(tramaConfirmacioComanda);
         close(socket);
-        return;
+        return -1;
     } 
     //aqui en funcio de lo que ha retornat la trama apliquem canvis a l'stock o no
     if(tramaConfirmacioComanda->tipus==0x16){
@@ -461,7 +453,7 @@ void sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r) {
                 free(nomStock);
                 free(tramaConfirmacioComanda);
                 close(socket);
-                return;
+                return -1;
             }
 
             nomFitxer=crearRutaComanda(r->rutaArxius, r->nom,nomRegneDest);
@@ -473,7 +465,7 @@ void sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r) {
                 free(tramaConfirmacioComanda);
                 close(fdProductes);
                 close(socket);
-                return;
+                return -1;
             }
 
             Producte *stock = extreureProductes(fdProductes, &n_stock);
@@ -498,8 +490,10 @@ void sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r) {
     free(tramaConfirmacioComanda);
     close(socket);
     free(nomFitxer);
+    return 1;
 
 }
+
 /*
     
 @brief Funció que envia una comanda de compra a un regne aliat.Espera el seur tetorn de resposta , incolent el md5sum.Si tot va be actualitza l'stock .
@@ -926,13 +920,20 @@ void startTrade(Regne *regneActual, char *comand, fd_set *master_set, int *max_f
                 break;
 
             case 2: //send
-               // sendCompra(nomRegneDest, regneActual->nom, productes, numProductes, regneActual->rutaArxius, regneActual);
-                    //comrovar
-
-
-                    //enviar -> sendTrade() a envoy
-
-               areTrading = 0;
+                int index=comprovarSendTrade(nomRegneDest, regneActual->nom, productes, numProductes, regneActual->rutaArxius, regneActual);
+                if(index<=-1){
+                    break;
+                }
+                int indexEnvoy = trobarEnvoyLliure(regneActual);
+                    if(indexEnvoy==-1){
+                        printString(1, "All envoys are occupied. Your command must wait\n");
+                        break;
+                }
+             
+                ForkRegneWritesEnvoy *frwe = crearForkRegneWritesEnvoy(2,nomRegneDest,NULL,0,0,0,NULL,0);
+                write(regneActual->envoys[indexEnvoy].pipeWrite, frwe, sizeof(ForkRegneWritesEnvoy));
+                free(frwe);
+                areTrading = 0;
                 break;
 
             case 3: //cancel
