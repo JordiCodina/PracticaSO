@@ -37,7 +37,7 @@ void rebreProductes(Regne *r, int socket, Trama *t,int indexAliat) {
     char *fitxerPath;
     asprintf(&fitxerPath, "%s/%s", missDir, fileName);
     int fd = open(fitxerPath, O_WRONLY | O_CREAT | O_TRUNC, 0666);
- 
+       
     if (fd < 0) {
         printString(1, "Error obrint fitxer d'inventari.\n");
         free(fitxerPath);
@@ -48,6 +48,7 @@ void rebreProductes(Regne *r, int socket, Trama *t,int indexAliat) {
     lseek(fd, 0, SEEK_END);
     int bytesRebuts = 0;
     //comencem a rebre les trames amb les dades del fitxer productes
+          
     while (bytesRebuts < fileSize) {
         Trama tramaRebuda;
         int n = read(socket, &tramaRebuda, sizeof(Trama));
@@ -73,6 +74,7 @@ void rebreProductes(Regne *r, int socket, Trama *t,int indexAliat) {
         bytesRebuts += tramaRebuda.dataLength;
     }
     close(fd);
+  
     char *md5 = calcularMD5SUM(fitxerPath);
     if (!md5) {
         printString(1, "Error calculant MD5.\n");
@@ -88,9 +90,11 @@ void rebreProductes(Regne *r, int socket, Trama *t,int indexAliat) {
     } else {
         ackMD5 = crearTrama(0x32, NULL, 0, NULL, strlen("CHECK_KO"), "CHECK_KO");
     }
-    enviarTramaDirecte(ackMD5,r->rutes[indexAliat].portDest,r->rutes[indexAliat].ipDest,r->nom);
-        listProductsMaester(fitxerPath,1,r->rutes[indexAliat].nomDest);
 
+    enviarTramaDirecte(ackMD5,r->rutes[indexAliat].portDest,r->rutes[indexAliat].ipDest,r->nom);
+
+        listProductsMaester(fitxerPath,1,r->rutes[indexAliat].nomDest);
+   
     free(md5);
     free(fitxerPath);
     free(missDir);
@@ -140,9 +144,8 @@ int comprovarlistproducts(Regne * r, char *nomAliat){
 
 }
 
-void listProductsAliat(Regne *r, char *nomAliat, int indexAliat/*,int* exitFlag*/,int portDestinat,char *ipDestinat) {
-        
-   
+void listProductsAliat(Regne *r, char *nomAliat, int indexAliat/*,int* exitFlag*/,unsigned int portDestinat,char *ipDestinat) {
+
     Trama *t = crearTrama(0x11, r->ip, r->port, nomAliat, 0, r->nom);
     int socket=enviarTramaDirecteSenseTancar(t, portDestinat, ipDestinat, nomAliat);
     if(socket<0){
@@ -159,7 +162,7 @@ void listProductsAliat(Regne *r, char *nomAliat, int indexAliat/*,int* exitFlag*
         close(socket);
         return;
     }
-    
+
     if(tramaPeticioLlista!=NULL || tramaPeticioLlista->tipus==0x69){
        //si no hem llegit res o es un nack , sera la 0x12 que es la iniciat per rebre productes
         if (tramaPeticioLlista && tramaPeticioLlista->tipus == 0x12) {
@@ -326,7 +329,7 @@ int comprovarSendTrade( char* nomRegneDest, char *nomMaester, Producte *producte
     return indexRuta;
 }
 
-int sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r,int indexRuta, int portDestinat,char *ipDestinat) {
+int sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r,int indexRuta,unsigned int portDestinat,char *ipDestinat) {
 
     
     int fdList=open(nomFitxer, O_RDONLY);
@@ -744,7 +747,7 @@ void startTrade(Regne *regneActual, char *comand, fd_set *master_set, int *max_f
                         break;
                 }
               
-                ForkRegneWritesEnvoy *frwe = crearForkRegneWritesEnvoy(2,nomRegneDest,NULL,indexEnvoy,0,0,regneActual->rutes[index].portDest,regneActual->rutes[index].ipDest);
+                ForkRegneWritesEnvoy *frwe = crearForkRegneWritesEnvoy(2,nomRegneDest,NULL,indexEnvoy,0,0,regneActual->rutes[index].ipDest, regneActual->rutes[index].portDest);
                 write(regneActual->envoys[indexEnvoy].pipeWrite, frwe, sizeof(ForkRegneWritesEnvoy));
                 free(frwe);
                 areTrading = 0;

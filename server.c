@@ -2,7 +2,7 @@
 
 #include "server.h"
 
-int create_server_socket(int port) {
+int create_server_socket(unsigned int port) {
     int server_fd;
     struct sockaddr_in address;
     
@@ -187,7 +187,7 @@ void rebreComandaProductes (Trama *t, Regne *r, int client_sock){
     }
     //buscar index aliat
     for(int i=0;i<r->n_rutes;i++){
-        if(r->rutes[i].portDest==atoi(paraules2[1])){
+        if(r->rutes[i].portDest== (unsigned int) atoi(paraules2[1])){
             indexAliat=i;
             break;
         }
@@ -352,7 +352,7 @@ void rebreSigil(Regne *r,Trama *t){
     int n_paraules = 0;
     char **paraules = tokenizer(t->nom_origen, &n_paraules, ':');//ip:port    for (int i=0;i<r->n_rutes;i++){
     for(int i=0;i<r->n_rutes;i++){
-        if(r->rutes[i].portDest==atoi(paraules[1]) && strcmp(r->rutes[i].nomDest, "DEFAULT")!=0){
+        if(r->rutes[i].portDest== (unsigned int) atoi(paraules[1]) && strcmp(r->rutes[i].nomDest, "DEFAULT")!=0){
             indexRuta=i;
             break;
         }
@@ -711,7 +711,7 @@ AQUI ES PROCESSEN TOTES LES TRAMES A PARTIR DEL TIPUS
             case 0x27:// trama que indica que s'ha de finalitzat un realm aliat i has de posar la ruta com a inactiva
                 int n_paraules3 = 0;
                 char **paraules3 = tokenizer(t->nom_origen, &n_paraules3, ':');
-                int port= atoi(paraules3[1]);
+                unsigned int port= atoi(paraules3[1]);
                 for (int i = 0; i < r->n_rutes; i++) {
                         if(r->rutes[i].portDest==port && strcmp(r->rutes[i].nomDest,"DEFAULT")!=0){
                         if(r->rutes[i].alianca == 'S'){

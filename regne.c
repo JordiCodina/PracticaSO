@@ -329,11 +329,22 @@ void processarMissatgeEnvoy(Regne *r, EnvoyWritesRegne *msg) {
                         break;
                 }
                 r->rutes[indexRuta].alianca = 'S';
+
+                char *miss;
+                asprintf(&miss, "old) port: %u, ip: %s\n",r->rutes[indexRuta].portDest, r->rutes[indexRuta].ipDest);
+                printString(1, miss);
+                free(miss);
+
                 //actualitza port
                 r->rutes[indexRuta].portDest = msg->portDest;
                 //actualitza ip
                 free(r->rutes[indexRuta].ipDest);
                 r->rutes[indexRuta].ipDest = strdup(msg->ipDest); 
+
+                
+                asprintf(&miss, "new) port: %u, ip: %s\n",r->rutes[indexRuta].portDest, r->rutes[indexRuta].ipDest);
+                printString(1, miss);
+                free(miss);
 
                 char *buffer;
                 asprintf(&buffer, ">>> Alliance with %s forged successfully!\n", r->rutes[indexRuta].nomDest);
@@ -562,7 +573,7 @@ int pledgeEnvoyEnviarSigil(char filenameSigil[30] , char nomDesti[50], Regne *r,
     return 1;
 }
 
-ForkRegneWritesEnvoy *crearForkRegneWritesEnvoy(int comanda,const char *regneDest,const char *rutaSegell,int indexEnvoy,int ackStatus,int statusPledgeRespond,const char *ipDest,int portDest) {
+ForkRegneWritesEnvoy *crearForkRegneWritesEnvoy(int comanda,const char *regneDest,const char *rutaSegell,int indexEnvoy,int ackStatus,int statusPledgeRespond,const char *ipDest,unsigned int portDest) {
     ForkRegneWritesEnvoy *frwe = malloc(sizeof(ForkRegneWritesEnvoy));
     
     if (frwe == NULL) {

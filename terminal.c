@@ -32,14 +32,6 @@ void exitMs (Regne *r){
 
 */
 
-void printRutes3 (Regne r){
-
-    for (int i = 0; i < r.n_rutes; i++){
-        printf("\truta: [%s]\n", r.rutes[i].ipDest);
-    }
-    printf("~~~~~~~~~~~~~~\n");
-}
-
 void runTerminal (Regne *r, char *fitxerStock){
     char *comanda = NULL;
     int comandaN = -1;
@@ -59,7 +51,7 @@ void runTerminal (Regne *r, char *fitxerStock){
     }
     iniciMs (r);
     printString(1, "$");
-    printRutes3(*r);
+
     while (comandaN != 7){ 
         if(*(r->exit) == 1){
             comandaN = 7;
@@ -169,6 +161,7 @@ void runTerminal (Regne *r, char *fitxerStock){
                     
                     if(n_paraules == 3){
                         int index=comprovarlistproducts(r, paraules[2]);
+
                         if(index==-1) break;
                         int envoyIndex = trobarEnvoyLliure(r);
                         if(envoyIndex==-1){
@@ -176,6 +169,11 @@ void runTerminal (Regne *r, char *fitxerStock){
                             break;
                         }
                         if(setEnvoyEnMissio(r, envoyIndex, paraules[2]) == -1) break;
+                        char* miss;
+                        asprintf(&miss, "proces regne.index(%d)) port: %u, ip: %s\n", index, r->rutes[index].portDest, r->rutes[index].ipDest);
+                        printString(1, miss);
+                        free(miss);
+
                         ForkRegneWritesEnvoy *frwe = crearForkRegneWritesEnvoy(1,paraules[2],NULL,0,0,0,r->rutes[index].ipDest,r->rutes[index].portDest);
                         write(r->envoys[envoyIndex].pipeWrite, frwe, sizeof(ForkRegneWritesEnvoy));
                         free(frwe);
@@ -240,7 +238,6 @@ void runTerminal (Regne *r, char *fitxerStock){
                                   
     }
 
-    printRutes3(*r);
     exitMs (r);
     notificarDesconnexioAliances(r);
     *(r->exit)=1;

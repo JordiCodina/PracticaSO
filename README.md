@@ -27,3 +27,9 @@ Config actual de MV:
 A->montserrat
 B->matagalls
 C->montserrat
+
+mapa:
+
+A --- B --- C
+
+per conectar de A a C, es necessiten els 3

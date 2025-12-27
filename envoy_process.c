@@ -98,11 +98,18 @@ void runenvoy(int pipeRead, int pipeWrite, Regne *r) {
 
                     break;
                 case 1: // LIST PRODUCTS
+
                     indexRuta=trobarRutaIndex(r, buffer.regneDest); 
+
+
+                        char* miss;
+                        asprintf(&miss, "proces envoy .index(%d)) port: %u, ip: %s\n", indexRuta, r->rutes[indexRuta].portDest, r->rutes[indexRuta].ipDest);
+                        printString(1, miss);
+                        free(miss);
                     if(indexRuta<0){ 
                         return;
                     }
-                    listProductsAliat(r, buffer.regneDest,indexRuta, buffer.portDest, buffer.ipDest);
+                    listProductsAliat(r, buffer.regneDest, indexRuta, buffer.portDest, buffer.ipDest);
                     break;
                 case 2: // SEND PRODUCTS
                     indexRuta=trobarRutaIndex(r, buffer.regneDest);

@@ -43,7 +43,7 @@
 } ThreadUnServidor; 
 
 
-int create_server_socket(int port);
+int create_server_socket(unsigned int port);
 int accept_client_connection(int server_fd);
 
 void  respondPledge(int res);

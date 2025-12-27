@@ -33,7 +33,7 @@ typedef struct {
 } Trama;
 
 typedef struct {//ho poso tot junt ja que per el thread es mes facil
-    int portDest;      // el port de destinació del seguent hop
+    unsigned int portDest;      // el port de destinació del seguent hop
     char *ipDest;      // l'adreça IP de destinació del seguent hop
     char *nomDest;     // el nom de destinació del seguent hop
     Trama *trama;        //Trama a enviar
@@ -61,7 +61,7 @@ unsigned short calcularChecksum(Trama *t) ;
 @return Punter a la nova trama creada.
 */
 
-Trama * crearTrama(char tipus,char *ip,int port,char *nom_desti,unsigned short dataLength,char *data);
+Trama * crearTrama(char tipus,char *ip,unsigned int port,char *nom_desti,unsigned short dataLength,char *data);
 
 //aquesta funcio busca la seguent ruta (tant si esta directament conectada com si no i llavors s'ha de fer salt) 
 
@@ -76,7 +76,7 @@ ClientConf *trobarSeguentMaester(Regne *r, Trama *t);
 @return Enter que indica l'estat de l'enviament (0 èxit, -1 error).
 */
 
-int enviarTramaDirecte(Trama *t,int portDest,char *ipDest, char * nomDest);//enviament directe sense hopping si saps ja tot
+int enviarTramaDirecte(Trama *t,unsigned int portDest,char *ipDest, char * nomDest);//enviament directe sense hopping si saps ja tot
 
 /*
 @brief Envia una trama directament a un destí específic sense tancar el socket.
@@ -87,7 +87,7 @@ int enviarTramaDirecte(Trama *t,int portDest,char *ipDest, char * nomDest);//env
 @return Enter que indica el socket utilitzat per l'enviament.
 */
 
-int  enviarTramaDirecteSenseTancar(Trama *t,int portDest,char *ipDest, char * nomDest);
+int  enviarTramaDirecteSenseTancar(Trama *t,unsigned int portDest,char *ipDest, char * nomDest);
 
 /*
 @brief Envia una trama dinamica per hops ,automaticament va a la taula de rutes per trobar la seguent ruta , si no troba doncs default

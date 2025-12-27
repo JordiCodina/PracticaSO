@@ -3,7 +3,7 @@
 
 #define BUFFER_SIZE 256
 
-int create_client_socket(const char *ip, int port) {
+int create_client_socket(const char *ip, unsigned int port) {
     int client_sock;
     struct sockaddr_in serv_addr;
     
@@ -80,7 +80,7 @@ unsigned short calcularChecksum(Trama *t) {
 @param data Les dades de la trama.
 @return Punter a la nova trama creada.
 */
-Trama * crearTrama(char tipus, char *ip, int port, char *nom_desti, unsigned short dataLength, char *data) {
+Trama * crearTrama(char tipus, char *ip, unsigned int port, char *nom_desti, unsigned short dataLength, char *data) {
 
     Trama * t = malloc (sizeof(Trama));
     if (t == NULL) {
@@ -150,7 +150,7 @@ ClientConf *trobarSeguentMaester(Regne *r, Trama *t) {//si troba ip amb * , agaf
 @return Enter que indica l'estat de l'enviament (0 èxit, -1 error).
 */
 
-int  enviarTramaDirecte(Trama *t,int portDest,char *ipDest, char * nomDest){ 
+int  enviarTramaDirecte(Trama *t,unsigned int portDest,char *ipDest, char * nomDest){ 
     ClientConf *conf = malloc(sizeof(ClientConf));
     if (!conf) {
         printString(1, "Error allocating memory for ClientConf\n");
@@ -176,7 +176,7 @@ int  enviarTramaDirecte(Trama *t,int portDest,char *ipDest, char * nomDest){
 @return Enter que indica el socket utilitzat per l'enviament.
 */
 
-int  enviarTramaDirecteSenseTancar(Trama *t,int portDest,char *ipDest, char * nomDest){ 
+int  enviarTramaDirecteSenseTancar(Trama *t, unsigned int portDest,char *ipDest, char * nomDest){ 
     ClientConf *conf = malloc(sizeof(ClientConf));
     if (!conf) {
         printString(1, "Error allocating memory for ClientConf\n");

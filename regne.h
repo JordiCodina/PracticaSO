@@ -61,7 +61,7 @@ typedef struct _EnvoyWritesRegne {
 } EnvoyWritesRegne;
 
 
-ForkRegneWritesEnvoy *crearForkRegneWritesEnvoy(int comanda,const char *regneDest,const char *rutaSegell,int indexEnvoy,int ackStatus,int statusPledgeRespond,const char *ipDest,int portDest) ;
+ForkRegneWritesEnvoy *crearForkRegneWritesEnvoy(int comanda,const char *regneDest,const char *rutaSegell,int indexEnvoy,int ackStatus,int statusPledgeRespond,const char *ipDest,unsigned int portDest) ;
 int trobarEnvoyIndex(Regne *r, const char *regneDest);
 int trobarRutaIndex(Regne *r, const char *regneDest) ;
 int comprovarRutaRegneValid(char *str,int n_rutes , Ruta *rutes);
