@@ -44,7 +44,7 @@ typedef struct _ForkRegneWritesEnvoy {//struc que li enviem al envoy
     int ackStatus; // 1 = OK , 2 = KO ,  (per pledge respond , 1= accept , 2 = reject)
     int statusPledgeRespond; // 1 = accept , 2 = reject (per pledge respond)
     char ipDest[16];//pledge respond 
-    int portDest; //pledge respond
+    unsigned int portDest; //pledge respond
 } ForkRegneWritesEnvoy;
 
 

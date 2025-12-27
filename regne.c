@@ -329,8 +329,9 @@ void processarMissatgeEnvoy(Regne *r, EnvoyWritesRegne *msg) {
                         break;
                 }
                 r->rutes[indexRuta].alianca = 'S';
+                //actualitza port
                 r->rutes[indexRuta].portDest = msg->portDest;
-
+                //actualitza ip
                 free(r->rutes[indexRuta].ipDest);
                 r->rutes[indexRuta].ipDest = strdup(msg->ipDest); 
 
@@ -374,7 +375,7 @@ void readEnvoys(fd_set *fds_set, Regne *r) {
             EnvoyWritesRegne msg;
            // char buffer[275];
             int n = read(fd, &msg, sizeof(EnvoyWritesRegne));
-            printf("\t2) msg rebut (ip): (%s)\n", msg.ipDest);
+            
             if (n <= 0) {
                 close(fd);
                 continue;
