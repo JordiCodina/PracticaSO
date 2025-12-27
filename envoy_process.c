@@ -32,20 +32,24 @@ void notificarRegneErrorMissio(int comanda,int pipeWrite, ForkRegneWritesEnvoy i
 }
 
 
-void runenvoy(int pipeRead, int pipeWrite,Regne *r) {
+void runenvoy(int pipeRead, int pipeWrite, Regne *r) {
 
     int statusACKFitxer=0;
     int statusACKMD5=0;
     time_t inici;
-     const double timeoutPledge = 120.0;
-     int mirarTimeout=0;
-     int indexRuta=-1;
+    const double timeoutPledge = 120.0;
+    int mirarTimeout=0;
+    int indexRuta=-1;
     signal(SIGINT, signalHandlerEnvoy);
 
     fd_set read_set;
     struct timeval timeout;
     ForkRegneWritesEnvoy infoInicial;
+
     EnvoyWritesRegne response;
+    response.portDest = r->port;
+    strcpy(response.ipDest, r->ip);
+    //printf("\tmsg port: %u, msg ip: (%s)\n", response.portDest, response.ipDest);
 
     while (1) {
         if (exitEnvoyFlag) break;
@@ -68,6 +72,7 @@ void runenvoy(int pipeRead, int pipeWrite,Regne *r) {
                     int indexRuta=trobarRutaIndex(r, infoInicial.regneDest);
                     response.indexRuta=indexRuta;
                     response.statusPledge = 0; // write TIMEOUT
+
                     write(pipeWrite, &response, sizeof(EnvoyWritesRegne));
              }
             continue;
@@ -114,7 +119,7 @@ void runenvoy(int pipeRead, int pipeWrite,Regne *r) {
                 case 3: // (PLEDGE) REBRE ACK FITXER -> si OK -> ENVIAR SIGIL
                     statusACKFitxer=buffer.ackStatus; // 1 = OK , 2 = KO
                     int statusSigil = -1;
-                    
+
                     if(statusACKFitxer==1){
                         statusSigil =pledgeEnvoyEnviarSigil( infoInicial.rutaSegell, infoInicial.regneDest, r, &exitEnvoyFlag);
                     }
@@ -151,7 +156,13 @@ void runenvoy(int pipeRead, int pipeWrite,Regne *r) {
                         if(buffer.statusPledgeRespond==1) // 1 = ACCEPT , 2 = REJECT , 0 = TIMEOUT
                         { 
                             response.statusPledge = 1; // write  ACCEPT
-                            
+
+                            //ARA MATEIX SESTA ENVIANT EL IP I PORT DEL TEU REGE
+                            //S'HAURIEN DENVIAR EL IP I PORT DEL REGNE AL QUAL HAS FET EL PLEDGE
+                            //S'HA DE CANVIAR
+                            response.portDest = r->port;
+                            strcpy(response.ipDest, r->ip);
+
                             write(pipeWrite, &response, sizeof(EnvoyWritesRegne));
                         }else{
                             response.statusPledge = 2;

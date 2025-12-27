@@ -31,7 +31,7 @@ void signalHandler() {
     signal(SIGINT, SIG_DFL);
     //raise(SIGINT);
 }
- 
+
 int main (int argc, char *argv[]){
     if (argc != 3) {
         printString(1,"Incorrect arguments : Maester <realm_name> <stock_file>\n");
@@ -69,6 +69,7 @@ int main (int argc, char *argv[]){
             runenvoy(pipePareFill[0], pipeFillPare[1], r); 
 
             freeRegne(r);
+
             _exit(0);
         }
 

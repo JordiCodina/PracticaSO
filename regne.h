@@ -54,7 +54,7 @@ typedef struct _EnvoyWritesRegne {
     int statusPledge;// 1 = accept , 2 = reject , 3 = timeout
     int indexEnvoy;
     int indexRuta;
-    int portDest;
+    unsigned int portDest;
     char ipDest[16];
 
     

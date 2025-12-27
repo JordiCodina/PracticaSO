@@ -71,19 +71,10 @@ void freeEnvoy(Envoy e){
 }
 
 void freeRuta(Ruta r){
-    /*
-    if (r.nomDest != NULL){
-        free(r.nomDest);
-    }
-    if (r.ipDest != NULL){
-        free(r.ipDest);
-    }*/
+
     if (r.nomDest) free(r.nomDest);
-    if (r.ipDest)  free(r.ipDest);
-
-   
+    if (r.ipDest) free(r.ipDest);
 }
-
 
 void freeRegne(Regne *r){
 

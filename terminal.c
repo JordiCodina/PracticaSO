@@ -32,7 +32,13 @@ void exitMs (Regne *r){
 
 */
 
+void printRutes3 (Regne r){
 
+    for (int i = 0; i < r.n_rutes; i++){
+        printf("\truta: [%s]\n", r.rutes[i].ipDest);
+    }
+    printf("~~~~~~~~~~~~~~\n");
+}
 
 void runTerminal (Regne *r, char *fitxerStock){
     char *comanda = NULL;
@@ -53,6 +59,7 @@ void runTerminal (Regne *r, char *fitxerStock){
     }
     iniciMs (r);
     printString(1, "$");
+    printRutes3(*r);
     while (comandaN != 7){ 
         if(*(r->exit) == 1){
             comandaN = 7;
@@ -232,9 +239,12 @@ void runTerminal (Regne *r, char *fitxerStock){
             joinThreadServidor(r);
                                   
     }
+
+    printRutes3(*r);
     exitMs (r);
     notificarDesconnexioAliances(r);
     *(r->exit)=1;
+
     return;
 
 }

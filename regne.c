@@ -330,7 +330,10 @@ void processarMissatgeEnvoy(Regne *r, EnvoyWritesRegne *msg) {
                 }
                 r->rutes[indexRuta].alianca = 'S';
                 r->rutes[indexRuta].portDest = msg->portDest;
+
+                free(r->rutes[indexRuta].ipDest);
                 r->rutes[indexRuta].ipDest = strdup(msg->ipDest); 
+
                 char *buffer;
                 asprintf(&buffer, ">>> Alliance with %s forged successfully!\n", r->rutes[indexRuta].nomDest);
                 printString(1, buffer);
@@ -370,7 +373,8 @@ void readEnvoys(fd_set *fds_set, Regne *r) {
         if (FD_ISSET(fd, fds_set)) {
             EnvoyWritesRegne msg;
            // char buffer[275];
-            int n = read(fd, &msg, sizeof(msg));
+            int n = read(fd, &msg, sizeof(EnvoyWritesRegne));
+            printf("\t2) msg rebut (ip): (%s)\n", msg.ipDest);
             if (n <= 0) {
                 close(fd);
                 continue;
@@ -379,8 +383,6 @@ void readEnvoys(fd_set *fds_set, Regne *r) {
         }
     }
 }
-
-
 
 char * escoltarTot(fd_set *master_set, int *max_fd, Regne *r) {
     char *comanda = NULL;
