@@ -492,11 +492,10 @@ void rebreSigil(Regne *r,Trama *t){
 Rebre PLEDGE RESPOND
 
 */
- void processarTramaPledgeRespond(Trama *t, Regne *r,int client_sock) {
+ void processarTramaPledgeRespond(Trama *t, Regne *r) {
    
     int n_paraules = 0;
     int n_paraules2 = 0;
-    int currRuta=0;
     char **paraules = tokenizer(t->nom_origen, &n_paraules, ':');
     char **paraules2 = tokenizer(t->data, &n_paraules2, '&');
 
@@ -514,32 +513,17 @@ Rebre PLEDGE RESPOND
             return;
     }
     if (strcasecmp(paraules2[0], "ACCEPT") == 0) {
-        int statusPledgeRespond=1; //ACCEPT
-        ForkRegneWritesEnvoy *frwe= crearForkRegneWritesEnvoy(5,paraules2[1], NULL , indexEnvoy,0,statusPledgeRespond, paraules[0], atoi(paraules[1]));
+
+        ForkRegneWritesEnvoy *frwe= crearForkRegneWritesEnvoy(5,paraules2[1], NULL , indexEnvoy, 0, 1, paraules[0], atoi(paraules[1]));
         write(r->envoys[indexEnvoy].pipeWrite,frwe, sizeof(ForkRegneWritesEnvoy));
         free(frwe);
         
     } else if (strcasecmp(paraules2[0], "REJECT") == 0) {
-        int statusPledgeRespond=2; //REJECT
-        ForkRegneWritesEnvoy *frwe = crearForkRegneWritesEnvoy(5,paraules2[1], NULL , indexEnvoy,0,2, paraules[0], atoi(paraules[1]));
+
+        ForkRegneWritesEnvoy *frwe = crearForkRegneWritesEnvoy(5,paraules2[1], NULL , indexEnvoy, 0, 2, paraules[0], atoi(paraules[1]));
         write(r->envoys[indexEnvoy].pipeWrite,frwe, sizeof(ForkRegneWritesEnvoy));
         free(frwe);
     }
-    
-    /*if(r->rutes[currRuta].alianca=='T'){
-        Trama * nackTrama=crearTrama(0x69, NULL, 0, NULL, 0, NULL);
-        write(client_sock, nackTrama, sizeof(Trama));
-        free(nackTrama);
-
-
-    }else if(r->rutes[currRuta].alianca=='S'){
-        char ackdata2[DATA_SIZE];
-        snprintf(ackdata2, DATA_SIZE, "OK&%s",r->nom);
-        Trama * ackTrama = crearTrama(0x31, NULL, 0, NULL, strlen(ackdata2), ackdata2);
-        write(client_sock, ackTrama, sizeof(Trama));
-        free(ackTrama);
-        
-    }*/
     freeTokens(paraules, n_paraules);
     freeTokens(paraules2, n_paraules2);
 }
@@ -696,7 +680,7 @@ AQUI ES PROCESSEN TOTES LES TRAMES A PARTIR DEL TIPUS
                 rebreSigil(r,t);
                 break;
             case 0x03:
-                processarTramaPledgeRespond(t, r, client_sock);
+                processarTramaPledgeRespond(t, r);
                 break;
             case 0x11: 
                 processarTramaLlistarProductes(t, r, client_sock);

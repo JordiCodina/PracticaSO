@@ -559,34 +559,6 @@ int pledgeEnvoyEnviarSigil(char filenameSigil[30] , char nomDesti[50], Regne *r,
     return 1;
 }
 
-int pledgeEnvoyWaitPledgeRespond(Regne *r, char nomDest[50], int *exitflag,int *pledgeRespondRebut){
-    time_t inici = time(NULL);
-    const double timeout = 120.0;
-    //return -1 si fa control c, 0 si fa timeout, 1 si ha rebut pledge respond
-    while (1) {
-        sleep(1);
-        //surtira daqui si fa control C o si ja ha rebut el pledge respond
-        if (*exitflag){
-            return -1;
-        }
-        if(*pledgeRespondRebut) {
-            return 1;
-        } 
-        if (difftime(time(NULL), inici) >= timeout) {
-            char *tmp = NULL;
-            if (asprintf(&tmp, "Pledge to %s timed out.\n", nomDest) != -1) {
-                printString(1, tmp);
-                free(tmp);
-            }
-            //timeout
-           // r->rutes[indexRuta].alianca = 'T'; // T de timeout
-           return 0;
-        }
-    }
-    return 0;
-}
-
-
 ForkRegneWritesEnvoy *crearForkRegneWritesEnvoy(int comanda,const char *regneDest,const char *rutaSegell,int indexEnvoy,int ackStatus,int statusPledgeRespond,const char *ipDest,int portDest) {
     ForkRegneWritesEnvoy *frwe = malloc(sizeof(ForkRegneWritesEnvoy));
     
