@@ -170,49 +170,15 @@ void pledgeRespond(Regne *r, char **paraules, int n_paraules) {
             
             
             Trama *t_enviar = crearTrama(0x03, r->ip, r->port,r->rutes[trobat].nomDest, strlen(data), data);
-            int socket = enviarTramaDirecteSenseTancar(t_enviar,r->rutes[trobat].portDest,r->rutes[trobat].ipDest,paraules[2]);
-            /*if (socket < 0) {
-                return;
-            }*/
-            //esperar ack/nack
-            //Trama *t = malloc(sizeof(Trama));
-            /*if (!t) {
-                close(socket);
-                return;
-            }*/
-            /*int n1 = read(socket, t, sizeof(Trama));
-            if (n1 <= 0) {
-                free(t);
-                printString(1, "Did not receive ACK/NACK for pledge response.\n");
-                close(socket);
-                return;
-            }*/
-            //if (t->tipus == 0x31) { // ACK correcte
-                char *miss;
-                asprintf(&miss, "Alliance with %s established.\n", paraules[2]);
-                printString(1, miss);
-                free(miss);
+            enviarTramaDirecte(t_enviar,r->rutes[trobat].portDest,r->rutes[trobat].ipDest,paraules[2]);
+ 
+            char *miss;
+            asprintf(&miss, "Alliance with %s established.\n", paraules[2]);
+            printString(1, miss);
+            free(miss);
 
-                r->rutes[trobat].alianca = 'S';
-                return;
-            /*}
-            else if (t->tipus == 0x69) { // NACK
-                char *miss2;
-                asprintf(&miss2, "Alliance with %s not established.\n", paraules[2]);
-                printString(1, miss2);
-                free(miss2);
-            }
-            else {
-                char *miss3;
-                asprintf(&miss3, "Did not receive valid ack from %s\n", paraules[2]);
-                printString(1, miss3);
-                free(miss3);
-            }
-
-            close(socket);
-            free(t);
+            r->rutes[trobat].alianca = 'S';
             return;
-            */
         }
 
         else {
@@ -346,6 +312,58 @@ void readSockets(fd_set *fds_set, Regne *r, int *max_fd) {
         }
     } 
 }
+
+void processarMissatgeEnvoy(Regne *r, EnvoyWritesRegne *msg) {
+
+    int indexRuta = msg->indexRuta;
+    if (indexRuta == -1) {
+        printString(1, "Route not found for the specified Realm.\n");
+        return;
+    }
+    printf( "Ha arribat un missatge del envoy al regne.\n");
+    switch (msg->comanda) {
+        case 1://pledge
+            if(msg->statusPledge==1){//accpet
+                
+                if (r->rutes[indexRuta].alianca == 'T') {
+                        break;
+                }
+                r->rutes[indexRuta].alianca = 'S';
+                r->rutes[indexRuta].portDest = msg->portDest;
+                r->rutes[indexRuta].ipDest = strdup(msg->ipDest); 
+                char *buffer;
+                asprintf(&buffer, ">>> Alliance with %s forged successfully!\n", r->rutes[indexRuta].nomDest);
+                printString(1, buffer);
+                free(buffer);
+            }else if(msg->statusPledge==2){ //reject
+
+                printString(1, "Pledge rejected by the other Realm.\n");
+                r->rutes[msg->indexRuta].alianca = 'N'; 
+
+            }else if (msg->statusPledge==0){//timeout 
+                r->rutes[msg->indexRuta].alianca = 'T'; 
+                char *tmp = NULL;
+                if (asprintf(&tmp, "Pledge to %s timed out.\n",  r->rutes[indexRuta].nomDest) != -1) {
+                    printString(1, tmp);
+                    free(tmp);
+                }
+            }
+            
+            break;
+
+        case 2://list products
+            break;
+
+        case 3://send 
+            break;
+        case 4://probelma (acks,conexions, etc) , simplemetn cancelar la missio
+                r->rutes[indexRuta].alianca = 'N';
+                printf("algo ha anat malament a l'envoy, missio cancel.lada\n");
+        break;
+    }
+    setEnvoyLliure(r, msg->indexEnvoy);
+}
+
 void readEnvoys(fd_set *fds_set, Regne *r) {
     for (int i = 0; i < r->n_envoys; i++) {
         int fd = r->envoys[i].pipeRead;
@@ -403,64 +421,11 @@ char * escoltarTot(fd_set *master_set, int *max_fd, Regne *r) {
    
 
 }
-void processarMissatgeEnvoy(Regne *r, EnvoyWritesRegne *msg) {
-    Envoy *e = &r->envoys[msg->indexEnvoy];
 
-    int indexRuta = msg->indexRuta;
-    if (indexRuta == -1) {
-        printString(1, "Route not found for the specified Realm.\n");
-        return;
-    }
-    printf( "Ha arribat un missatge del envoy al regne.\n");
-    switch (msg->comanda) {
-        case 1://pledge
-            if(msg->statusPledge==1){//accpet
-                
-                if (r->rutes[indexRuta].alianca == 'T') {
-                        break;
-                }
-                r->rutes[indexRuta].alianca = 'S';
-                r->rutes[indexRuta].portDest = msg->portDest;
-                r->rutes[indexRuta].ipDest = strdup(msg->ipDest); 
-                char *buffer;
-                asprintf(&buffer, ">>> Alliance with %s forged successfully!\n", r->rutes[indexRuta].nomDest);
-                printString(1, buffer);
-                free(buffer);
-            }else if(msg->statusPledge==2){ //reject
-
-                printString(1, "Pledge rejected by the other Realm.\n");
-                r->rutes[msg->indexRuta].alianca = 'N'; 
-
-            }else if (msg->statusPledge==0){//timeout 
-                r->rutes[msg->indexRuta].alianca = 'T'; 
-                char *tmp = NULL;
-                if (asprintf(&tmp, "Pledge to %s timed out.\n",  r->rutes[indexRuta].nomDest) != -1) {
-                    printString(1, tmp);
-                    free(tmp);
-                }
-            }
-            
-            break;
-
-        case 2://list products
-            break;
-
-        case 3://send 
-            break;
-        case 4://probelma (acks,conexions, etc) , simplemetn cancelar la missio
-                r->rutes[indexRuta].alianca = 'N';
-                printf("algo ha anat malament a l'envoy, missio cancel.lada\n");
-        break;
-    }
-    setEnvoyLliure(r, msg->indexEnvoy);
-
-
-}
-
-int pledgeComprovar(Regne *r, char **paraules, int n_paraules){
+int pledgeComprovar(Regne *r, char **paraules){
 
     if (!comprovarRegneExisteix(r, paraules[1])) {
-        printString(1, "No such realm exists. The pledge is hereby withdrawn. Remember is case sensitive\n");
+        printString(1, "No such realm exists. The pledge is hereby withdrawn. Remember is case sensitive.\n");
         return -1;
     }
     int indexRuta = -1;
@@ -543,7 +508,7 @@ int pledgeEnvoyTramaInicial(char filenameSigil[30] , char nomDesti[50], Regne *r
     }
     return 1;
 }
-int pledgeEnvoyEnviarSigil(char filenameSigil[30] , char nomDesti[50], Regne *r, int indexRuta,int *exitflag){
+int pledgeEnvoyEnviarSigil(char filenameSigil[30] , char nomDesti[50], Regne *r,int *exitflag){
 
     int startPos = 0;
     char *filename;
@@ -572,7 +537,6 @@ int pledgeEnvoyEnviarSigil(char filenameSigil[30] , char nomDesti[50], Regne *r,
         if (!sigilData) {
             printString(1, "Error reading sigil data\n");
             close(fdSigil);
-            //r->rutes[indexRuta].alianca = 'N';
             return -1;
         }
         //crear i enviar la trama 0x02 per hops , es la trama per enviar el segell trama a trama
@@ -583,7 +547,6 @@ int pledgeEnvoyEnviarSigil(char filenameSigil[30] , char nomDesti[50], Regne *r,
             printString(1, "Error sending sigil trama.\n");
             free(sigilData);
             close(fdSigil);
-            //r->rutes[indexRuta].alianca = 'N';
             return -1;
         }
 

@@ -68,10 +68,6 @@ void freeEnvoy(Envoy e){
     if (e.nomRegneViatge != NULL){
         free(e.nomRegneViatge);
     }
-    if (e.status) {
-        free(e.status);
-        e.status = NULL;
-    }
 }
 
 void freeRuta(Ruta r){
@@ -132,7 +128,7 @@ void freeRegne(Regne *r){
 
 void initializeEnvoy (Envoy *e){
 
-    e->status = NULL;
+    e->status = 0;
     e->nomRegneViatge = NULL;
     //e->ackFitxer = 0;     
     //e->ackMD5SUM = 0;
@@ -175,13 +171,9 @@ void initializeRegne (Regne *r){
 */
 
 void envoyCpy (Envoy *dest, Envoy *org){
-
-
-    if (dest->status != NULL){
-        free(dest->status);
-    }
     
     dest->status=org->status ;
+    
     if (dest->nomRegneViatge != NULL){
         free(dest->nomRegneViatge);
     }

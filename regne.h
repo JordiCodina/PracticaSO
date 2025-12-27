@@ -71,9 +71,9 @@ int comprovarRutaRegneValid(char *str,int n_rutes , Ruta *rutes);
 void listRealms(Regne *r);
 
 // Comanda PLEDGE
-int pledgeComprovar(Regne *r, char **paraules, int n_paraules);
+int pledgeComprovar(Regne *r, char **paraules);
 int pledgeEnvoyTramaInicial(char filenameSigil[30] , char nomDesti[50], Regne *r);
-int pledgeEnvoyEnviarSigil(char filenameSigil[30] , char nomDesti[50], Regne *r, int indexRuta,int *exitflag);
+int pledgeEnvoyEnviarSigil(char filenameSigil[30] , char nomDesti[50], Regne *r,int *exitflag);
 void pledgeRespond ( Regne *r,char** paraules,int n_paraules);
 // Comanda PLEDGE STATUS 
 void pledgeStatus (Regne *r);

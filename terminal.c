@@ -141,7 +141,7 @@ void runTerminal (Regne *r, char *fitxerStock){
                         break;
                     } 
 
-                    int index =pledgeComprovar(r, paraules, n_paraules);
+                    int index =pledgeComprovar(r, paraules);
                     if(index==-1) break;
 
                     int envoyIndex = trobarEnvoyLliure(r);

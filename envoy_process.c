@@ -8,7 +8,7 @@ void signalHandlerEnvoy() {
     exitEnvoyFlag = 1;
 }
 
-int mirarTimeoutPledge(int mirarTimeoutFlag,double timeout, time_t inici, char *nomDest) {
+int mirarTimeoutPledge(int mirarTimeoutFlag,double timeout, time_t inici) {
         if (mirarTimeoutFlag <= 0) return 0;
 
         if (difftime(time(NULL), inici) >= timeout) {
@@ -60,7 +60,7 @@ void runenvoy(int pipeRead, int pipeWrite,Regne *r) {
 
         if (ret < 0) continue;
         if(ret == 0) {
-             int statusTimeout = mirarTimeoutPledge(mirarTimeout,timeoutPledge, inici, infoInicial.regneDest);
+             int statusTimeout = mirarTimeoutPledge(mirarTimeout,timeoutPledge, inici);
              if(statusTimeout==2) {//indica que ha fet timeout
                     mirarTimeout=0;
                     response.comanda = 1;
@@ -113,10 +113,12 @@ void runenvoy(int pipeRead, int pipeWrite,Regne *r) {
                     break;
                 case 3: // (PLEDGE) REBRE ACK FITXER -> si OK -> ENVIAR SIGIL
                     statusACKFitxer=buffer.ackStatus; // 1 = OK , 2 = KO
+                    int statusSigil = -1;
+                    
                     if(statusACKFitxer==1){
-                        int status=pledgeEnvoyEnviarSigil( infoInicial.rutaSegell, infoInicial.regneDest,r,infoInicial.indexEnvoy,&exitEnvoyFlag);
+                        statusSigil =pledgeEnvoyEnviarSigil( infoInicial.rutaSegell, infoInicial.regneDest, r, &exitEnvoyFlag);
                     }
-                    if (statusACKFitxer != 1 || status == -1) {
+                    if (statusACKFitxer != 1 || statusSigil == -1) {
                         
                         mirarTimeout=0;
                         notificarRegneErrorMissio(4, pipeWrite, infoInicial, r);
@@ -144,7 +146,7 @@ void runenvoy(int pipeRead, int pipeWrite,Regne *r) {
                         printString(1, "No route found for the specified realm in pledge respond.\n");
                         break;
                     }
-                    if(mirarTimeoutPledge(mirarTimeout,timeoutPledge, inici, infoInicial.regneDest)) {
+                    if(mirarTimeoutPledge(mirarTimeout,timeoutPledge, inici)) {
                          mirarTimeout=0;
                         if(buffer.statusPledgeRespond==1) // 1 = ACCEPT , 2 = REJECT , 0 = TIMEOUT
                         { 
