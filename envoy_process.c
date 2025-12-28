@@ -39,7 +39,6 @@ void runenvoy(int pipeRead, int pipeWrite, Regne *r) {
     time_t inici;
     const double timeoutPledge = 120.0;
     int mirarTimeout=0;
-    int indexRuta=-1;
     signal(SIGINT, signalHandlerEnvoy);
 
     fd_set read_set;
@@ -47,8 +46,10 @@ void runenvoy(int pipeRead, int pipeWrite, Regne *r) {
     ForkRegneWritesEnvoy infoInicial;
 
     EnvoyWritesRegne response;
+    
     response.portDest = -1;      //valor per defecte 
     memset(response.ipDest, '\0', 16); //valor per defecte
+    memset(&response, 0, sizeof(EnvoyWritesRegne));
 
     while (1) {
         if (exitEnvoyFlag) break;
@@ -99,30 +100,32 @@ void runenvoy(int pipeRead, int pipeWrite, Regne *r) {
                     break;
                 case 1: // LIST PRODUCTS
 
-                    indexRuta=trobarRutaIndex(r, buffer.regneDest); 
-
-
-                        char* miss;
-                        asprintf(&miss, "proces envoy .index(%d)) port: %u, ip: %s\n", indexRuta, r->rutes[indexRuta].portDest, r->rutes[indexRuta].ipDest);
-                        printString(1, miss);
-                        free(miss);
-                    if(indexRuta<0){ 
-                        return;
+                    int statusListProducts = listProductsAliat(r, buffer.regneDest, buffer.portDest, buffer.ipDest);
+                    if(statusListProducts<0){
+                        notificarRegneErrorMissio(4, pipeWrite, infoInicial, r);
                     }
-                    listProductsAliat(r, buffer.regneDest, indexRuta, buffer.portDest, buffer.ipDest);
+                    //aixo ho faig perque pugui alliberar el envoy , ja que s'allibera a la funcio processarMissatge de regne.c
+                    response.comanda = 2;
+                    write(pipeWrite, &buffer, sizeof(EnvoyWritesRegne));
                     break;
                 case 2: // SEND PRODUCTS
-                    indexRuta=trobarRutaIndex(r, buffer.regneDest);
+                    /*indexRuta=trobarRutaIndex(r, buffer.regneDest);
                     if(indexRuta<0){ 
                         return; //cas imposible
-                    }
-                    int statusSendTrade = sendTrade( crearRutaComanda( r->rutaArxius, r->nom, buffer.regneDest), buffer.regneDest, r,indexRuta, buffer.portDest, buffer.ipDest);
+                    }*/
+                    char *rutaComanda = crearRutaComanda( r->rutaArxius, r->nom, buffer.regneDest);
+                    int statusSendTrade = sendTrade( rutaComanda, buffer.regneDest, r, buffer.portDest, buffer.ipDest);
+                    free(rutaComanda);
                     if(!statusSendTrade){
                         notificarRegneErrorMissio(4, pipeWrite, infoInicial, r);
+                    }else{
+                        response.comanda = 3;
+                        write(pipeWrite, &buffer, sizeof(EnvoyWritesRegne));
                     }
 
                     break;
                 case 3: // (PLEDGE) REBRE ACK FITXER -> si OK -> ENVIAR SIGIL
+                    
                     statusACKFitxer=buffer.ackStatus; // 1 = OK , 2 = KO
                     int statusSigil = -1;
 

@@ -13,7 +13,7 @@
 
 */
 
-void rebreProductes(Regne *r, int socket, Trama *t,int indexAliat) {
+void rebreProductes(Regne *r, int socket, Trama *t, char * nomAliat) {
 
     // DATA = <FileName>&<FileSize>&<MD5SUM>
     int n_paraules = 0;
@@ -29,7 +29,8 @@ void rebreProductes(Regne *r, int socket, Trama *t,int indexAliat) {
     char *MD5Esperat = paraules[2];
 
     Trama *ack = crearTrama(0x31, NULL, 0, NULL, 2, "OK");
-    write(socket, ack, sizeof(Trama));
+    enviarTramaSocket(ack, socket);
+    //write(socket, ack, sizeof(Trama));
     free(ack);
 
     char *missDir;
@@ -90,15 +91,17 @@ void rebreProductes(Regne *r, int socket, Trama *t,int indexAliat) {
     } else {
         ackMD5 = crearTrama(0x32, NULL, 0, NULL, strlen("CHECK_KO"), "CHECK_KO");
     }
+    enviarTramaSocket(ackMD5, socket);
+    free(ackMD5);
+    //enviarTramaDirecte(ackMD5,port,ip,r->nom);
 
-    enviarTramaDirecte(ackMD5,r->rutes[indexAliat].portDest,r->rutes[indexAliat].ipDest,r->nom);
-
-        listProductsMaester(fitxerPath,1,r->rutes[indexAliat].nomDest);
+        listProductsMaester(fitxerPath,1,nomAliat);
    
     free(md5);
     free(fitxerPath);
     free(missDir);
     freeTokens(paraules, n_paraules);
+    
 }
 
 
@@ -144,35 +147,36 @@ int comprovarlistproducts(Regne * r, char *nomAliat){
 
 }
 
-void listProductsAliat(Regne *r, char *nomAliat, int indexAliat/*,int* exitFlag*/,unsigned int portDestinat,char *ipDestinat) {
+int listProductsAliat(Regne *r, char *nomAliat/*,int* exitFlag*/,unsigned int portDestinat,char *ipDestinat) {
 
     Trama *t = crearTrama(0x11, r->ip, r->port, nomAliat, 0, r->nom);
     int socket=enviarTramaDirecteSenseTancar(t, portDestinat, ipDestinat, nomAliat);
     if(socket<0){
         printString(1, "Error sending trama to ally. Probably is disconnected.\n");
-        return;
+        return -1;
     }
     printString(1, "Waiting for product list from ally...\n");
 
-    Trama *tramaPeticioLlista = malloc(sizeof(Trama));
+    Trama *tramaPeticioLlista = crearTrama(0, NULL, 0, NULL, 0, NULL);
     int n=read(socket, tramaPeticioLlista, sizeof(Trama));
     if(n<=0){
         free(tramaPeticioLlista);
         printString(1, "Did not receive product list from ally.\n");
         close(socket);
-        return;
+        return -1;
     }
 
     if(tramaPeticioLlista!=NULL || tramaPeticioLlista->tipus==0x69){
        //si no hem llegit res o es un nack , sera la 0x12 que es la iniciat per rebre productes
         if (tramaPeticioLlista && tramaPeticioLlista->tipus == 0x12) {
-            rebreProductes(r, socket, tramaPeticioLlista, indexAliat);
+            rebreProductes(r, socket, tramaPeticioLlista, nomAliat);
         }
     }else{
         printString(1, "Did not receive product list from ally.\n");
     }
     free(tramaPeticioLlista);
     close(socket);
+    return 1;
 }
 
 /*
@@ -261,32 +265,30 @@ int crearFitxerComandes(char *nomFitxer){
         return fd;
     }
 
-
-void llegirComandesTrade(Producte *stock, int *n_stock, int fdCommandes){
-            
+Producte *llegirComandesTrade(Producte *stock, int *n_stock, int fdCommandes) {
     int size;
-    int n_paraules=0;
-    int numProductes=0;
-    while(1){
+    int n_paraules;
 
-        char *line =readUntil(fdCommandes, '\n', &size);
-        if(line==NULL){
-            break;
-        }
-        numProductes++;
-        char **paraules=tokenizer(line, &n_paraules, ':');
-        if(n_paraules!=2){
-            free(line);
+    while (1) {
+        char *line = readUntil(fdCommandes, '\n', &size);
+        if (line == NULL) break;
+
+        char **paraules = tokenizer(line, &n_paraules, ':');
+        if (n_paraules != 2) {
             freeTokens(paraules, n_paraules);
+            free(line);
             continue;
         }
-        stock = realloc(stock, ((*n_stock) + numProductes) * sizeof(Producte));
 
-        afegirAlStock(stock, n_stock,paraules[0],atoi(paraules[1]),0);
+        stock = realloc(stock, (*n_stock + 1) * sizeof(Producte));
+        afegirAlStock(stock, n_stock, paraules[0], atoi(paraules[1]), 0);
+
         freeTokens(paraules, n_paraules);
         free(line);
     }
+    return stock;
 }
+
 
 int comprovarSendTrade( char* nomRegneDest, char *nomMaester, Producte *productes, int numProductes, char *rutaArxius, Regne *r) {
 
@@ -318,6 +320,7 @@ int comprovarSendTrade( char* nomRegneDest, char *nomMaester, Producte *producte
         free(nomFitxer);
         return -1;
     }
+    free(nomFitxer);
     char *miss2; 
     for (int i = 0; i <numProductes; i++) { 
         asprintf(&miss2, "%s:%d\n", productes[i].name,productes[i].amount); //posem els prodcutes al fitxer de comandes
@@ -329,7 +332,7 @@ int comprovarSendTrade( char* nomRegneDest, char *nomMaester, Producte *producte
     return indexRuta;
 }
 
-int sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r,int indexRuta,unsigned int portDestinat,char *ipDestinat) {
+int sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r,unsigned int portDestinat,char *ipDestinat) {
 
     
     int fdList=open(nomFitxer, O_RDONLY);
@@ -347,6 +350,7 @@ int sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r,int indexRuta,unsig
         free(nomFitxer);
         return -1;
     }
+    
     char data[275];
     snprintf(data, sizeof(data), "%s&%d&%s", nomFitxer, size, md5);
     free(md5);
@@ -395,11 +399,11 @@ int sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r,int indexRuta,unsig
             if(startPos+275>size){
                  
                 listData=readFd(fdList,startPos,size-startPos);
-                trama = crearTrama(0x15, r->ip, r->port, r->rutes[indexRuta].nomDest , size-startPos,listData);
+                trama = crearTrama(0x15, r->ip, r->port, nomRegneDest , size-startPos,listData);
 
             }else{
                 listData=readFd(fdList,startPos,275);
-                trama = crearTrama(0x15, r->ip, r->port, r->rutes[indexRuta].nomDest , 275,listData);
+                trama = crearTrama(0x15, r->ip, r->port, nomRegneDest , 275,listData);
             }
             enviarTramaSocket(trama,socket);
             free(trama);
@@ -432,7 +436,9 @@ int sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r,int indexRuta,unsig
         freeTokens(paraules, n_paraules);
         free(tramaPeticioComandaAckmd5);        
     char *miss; 
-    asprintf(&miss,"Trade list sent to %s\n",nomRegneDest); printString(1,miss); free(miss);
+    asprintf(&miss,"Trade list sent to %s\n",nomRegneDest);
+     printString(1,miss); 
+     free(miss);
     //LLEGEIR TRAMA 0X16
     Trama *tramaConfirmacioComanda=crearTrama(0, NULL, 0, NULL, 0, NULL);
     int n2=read(socket, tramaConfirmacioComanda, sizeof(Trama));
@@ -443,6 +449,7 @@ int sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r,int indexRuta,unsig
         close(socket);
         return -1;
     } 
+
     //aqui en funcio de lo que ha retornat la trama apliquem canvis a l'stock o no
     if(tramaConfirmacioComanda->tipus==0x16){
         //aqui actualitzem el stock si la comanda ha anat be
@@ -458,7 +465,6 @@ int sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r,int indexRuta,unsig
                 close(socket);
                 return -1;
             }
-
             nomFitxer=crearRutaComanda(r->rutaArxius, r->nom,nomRegneDest);
             int fdCommandes = open(nomFitxer, O_RDONLY);
             if (fdCommandes < 0) {
@@ -470,14 +476,26 @@ int sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r,int indexRuta,unsig
                 close(socket);
                 return -1;
             }
-
+            
+            free(nomFitxer);
             Producte *stock = extreureProductes(fdProductes, &n_stock);
             close(fdProductes);            
-            llegirComandesTrade(stock, &n_stock, fdCommandes);
+            stock = llegirComandesTrade(stock, &n_stock, fdCommandes);
+            if(stock == NULL){
+                printString(1, "Error reading trade commands\n");
+                free(nomStock);
+                free(tramaConfirmacioComanda);
+                close(fdCommandes);
+                close(socket);
+                return -1;
+            }
+
             close(fdCommandes);
             actualitzarProductes(nomStock, stock, n_stock);
             free(stock);
             free(nomStock);
+
+
             printString(1, ">>> Order accepted by TheVale. Stock updated.\n");
         }
         else if(strcmp(tramaConfirmacioComanda->data,"REJECT&OUT_OF_STOCK")==0){
@@ -492,7 +510,7 @@ int sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r,int indexRuta,unsig
     }
     free(tramaConfirmacioComanda);
     close(socket);
-    free(nomFitxer);
+    
     return 1;
 
 }

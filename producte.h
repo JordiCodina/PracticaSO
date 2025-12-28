@@ -20,8 +20,8 @@
 void listProductsMaester(char *nomFitxer, int opcio,char * nomAliat) ;
 
 int comprovarlistproducts(Regne * r, char *nomAliat);
-void listProductsAliat(Regne *r, char *nomAliat, int indexAliat,/*int* exitFlag,*/unsigned int portDestinat,char *ipDestinat) ;
-int sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r,int indexRuta,unsigned int portDestinat,char *ipDestinat);//send comanda
+int listProductsAliat(Regne *r, char *nomAliat,/*int* exitFlag,*/unsigned int portDestinat,char *ipDestinat) ;
+int sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r,unsigned int portDestinat,char *ipDestinat);//send comanda
 
 void startTrade(Regne *r, char *comand, fd_set *master_set, int *max_fd) ;//començar start trade
 

@@ -607,7 +607,7 @@ void processarTramaLlistarProductes(Trama *t, Regne *r,int client_sock) {
         Trama * trama = crearTrama(0x12, r->ip, r->port, r->rutes[indexAliat].nomDest , strlen(data),data);
         enviarTramaSocket(trama, client_sock);
         free(trama);
-        printString(1, "Products delivered.\n");
+        
 
         Trama * acktrama=crearTrama(0, NULL, 0, NULL, 0, NULL);
         int n=read(client_sock, acktrama, sizeof(Trama));
@@ -747,10 +747,10 @@ AQUI ES PROCESSEN TOTES LES TRAMES A PARTIR DEL TIPUS
                 char **paraules = tokenizer(t->data, &n_paraules, '&');
                 if(strcmp("OK",paraules[0])==0){
                     statusACKFitxer=1;
-                    printString(1, "Trama ack fitxer  OK rebuda:\n");
+                    //printString(1, "Trama ack fitxer  OK rebuda:\n");
                 }else{
                     statusACKFitxer=2;
-                    printString(1, "Trama ack fitxer  KO rebuda:\n");
+                    printString(1, "ERROR: ack file KO received.\n");
                 }
 
                 int quinEnvoy=-1;                
@@ -780,9 +780,9 @@ AQUI ES PROCESSEN TOTES LES TRAMES A PARTIR DEL TIPUS
                 char **paraules2 = tokenizer(t->data, &n_paraules2, '&');
                  if(strcmp(paraules2[0],"CHECK_OK")==0){
                     statusACKMD5=1;
-                    printString(1, "Trama MD5 OK rebuda:\n");
+                    //printString(1, "Trama MD5 OK rebuda:\n");
                 }else{
-                    printString(1,"ERROR: MD5 sum is incorrect. Try again\n");
+                    printString(1,"ERROR: MD5 sum is incorrect.\n");
                 }
                 
                 int quinEnvoy2=-1;
@@ -930,7 +930,7 @@ void* runServer(void *arg) {
             //, per tant hem de envair ack KO a origen
             printString(1, "Error forwarding. Cannot connect to realm.\n");
             char *data;
-            asprintf(&data, "KO&%s", nom_origen);
+            asprintf(&data, "KO&%s", nom_desti);
             Trama *tramaACKKO = crearTrama(0x31, NULL, 0, NULL, strlen(data), data);
             free(data);
             int n_paraules = 0;

@@ -367,13 +367,15 @@ void processarMissatgeEnvoy(Regne *r, EnvoyWritesRegne *msg) {
             break;
 
         case 2://list products
+            
             break;
 
         case 3://send 
+            
             break;
         case 4://probelma (acks,conexions, etc) , simplemetn cancelar la missio
                 r->rutes[indexRuta].alianca = 'N';
-                printf("algo ha anat malament a l'envoy, missio cancel.lada\n");
+                printf("Something went wrong. Mission has failed\n");
         break;
     }
     setEnvoyLliure(r, msg->indexEnvoy);
@@ -502,18 +504,14 @@ int pledgeEnvoyTramaInicial(char filenameSigil[30] , char nomDesti[50], Regne *r
     snprintf(data, DATA_SIZE, "%s&%s&%d&%s", r->nom, filename, size, md5);
 
     free(filename);
- 
-
+    free(md5);
+    close(fd);
      Trama *trama = crearTrama(0x01, r->ip, r->port,nomDesti , strlen(data), data);
     int socket = enviarTramaDinamica(trama, r, 0); // trama s'allibera aquí
     if (socket < 0) {
         printString(1, "Cannot send pledge request.\n");
         return 0;
     }
-
-    close(fd);
-    free(md5);
-
 
     char *buffer = NULL;
     if (asprintf(&buffer, "Pledge sent to %s. Envoy 1 is on its way.\n", nomDesti) != -1) {
@@ -567,6 +565,7 @@ int pledgeEnvoyEnviarSigil(char filenameSigil[30] , char nomDesti[50], Regne *r,
         free(sigilData);
         startPos += chunk;
     }
+    printString(1, "Sigil sent successfully.\n");
     free(filename);
     close(fdSigil);
 

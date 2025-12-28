@@ -15,6 +15,16 @@ valC: maester.o terminal.o server.o producte.o regne.o client.o config.o envoy_p
 	valgrind --dsymutil=yes --track-origins=yes --leak-check=full --track-fds=yes --show-reachable=yes -s ./Maester C.dat stockc.db
 	rm maester.o terminal.o server.o producte.o regne.o client.o config.o envoy_process.o funcions_basiques.o semaphore.o
 
+valD: maester.o terminal.o server.o producte.o regne.o client.o config.o envoy_process.o funcions_basiques.o semaphore.o
+	gcc -g maester.o terminal.o server.o producte.o regne.o client.o config.o envoy_process.o funcions_basiques.o semaphore.o -o Maester 
+	valgrind --dsymutil=yes --track-origins=yes --leak-check=full --track-fds=yes --show-reachable=yes -s ./Maester D.dat stockd.db
+	rm maester.o terminal.o server.o producte.o regne.o client.o config.o envoy_process.o funcions_basiques.o semaphore.o
+
+valE: maester.o terminal.o server.o producte.o regne.o client.o config.o envoy_process.o funcions_basiques.o semaphore.o
+	gcc -g maester.o terminal.o server.o producte.o regne.o client.o config.o envoy_process.o funcions_basiques.o semaphore.o -o Maester
+	valgrind --dsymutil=yes --track-origins=yes --leak-check=full --track-fds=yes --show-reachable=yes -s ./Maester E.dat stocke.db
+	rm maester.o terminal.o server.o producte.o regne.o client.o config.o envoy_process.o funcions_basiques.o semaphore.o
+
 #without valgrind
 
 a: maester.o terminal.o server.o producte.o regne.o client.o config.o envoy_process.o funcions_basiques.o semaphore.o
@@ -30,6 +40,16 @@ b: maester.o terminal.o server.o producte.o regne.o client.o config.o envoy_proc
 c: maester.o terminal.o server.o producte.o regne.o client.o config.o envoy_process.o funcions_basiques.o semaphore.o
 	gcc -g maester.o terminal.o server.o producte.o regne.o client.o config.o envoy_process.o funcions_basiques.o semaphore.o -o Maester
 	./Maester C.dat stockc.db
+	rm maester.o terminal.o server.o producte.o regne.o client.o config.o envoy_process.o funcions_basiques.o semaphore.o
+
+d: maester.o terminal.o server.o producte.o regne.o client.o config.o envoy_process.o funcions_basiques.o semaphore.o
+	gcc -g maester.o terminal.o server.o producte.o regne.o client.o config.o envoy_process.o funcions_basiques.o semaphore.o -o Maester
+	./Maester D.dat stockd.db
+	rm maester.o terminal.o server.o producte.o regne.o client.o config.o envoy_process.o funcions_basiques.o semaphore.o
+
+e: maester.o terminal.o server.o producte.o regne.o client.o config.o envoy_process.o funcions_basiques.o semaphore.o
+	gcc -g maester.o terminal.o server.o producte.o regne.o client.o config.o envoy_process.o funcions_basiques.o semaphore.o -o Maester
+	./Maester E.dat stocke.db
 	rm maester.o terminal.o server.o producte.o regne.o client.o config.o envoy_process.o funcions_basiques.o semaphore.o
 
 

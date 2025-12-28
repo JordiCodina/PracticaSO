@@ -63,6 +63,10 @@ int main (int argc, char *argv[]){
         }
 
         if (pid == 0) {
+            for (int j = 0; j < i; j++) {
+                close(r->envoys[j].pipeRead);
+                close(r->envoys[j].pipeWrite);
+            }
             close(pipePareFill[1]); 
             close(pipeFillPare[0]);
 
