@@ -235,12 +235,17 @@ void runTerminal (Regne *r, char *fitxerStock){
             free(comanda);
             comanda = NULL;
             joinThreadServidor(r);
+
+            
                                   
     }
 
     exitMs (r);
     notificarDesconnexioAliances(r);
     *(r->exit)=1;
+    for (int i = 0; i < r->n_envoys; i++) {
+            kill(r->envoys[i].pid, SIGUSR1);
+    }
 
     return;
 

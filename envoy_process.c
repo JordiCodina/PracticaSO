@@ -4,8 +4,11 @@
 
 int exitEnvoyFlag = 0;
 
-void signalHandlerEnvoy() {
+void signalHandlerExitEnvoy() {
     exitEnvoyFlag = 1;
+    signal(SIGUSR1, SIG_DFL);
+    signal(SIGINT, SIG_DFL);
+
 }
 
 int mirarTimeoutPledge(int mirarTimeoutFlag,double timeout, time_t inici) {
@@ -39,8 +42,8 @@ void runenvoy(int pipeRead, int pipeWrite, Regne *r) {
     time_t inici;
     const double timeoutPledge = 120.0;
     int mirarTimeout=0;
-    signal(SIGINT, signalHandlerEnvoy);
-
+    signal(SIGINT, SIG_IGN);
+    signal(SIGUSR1, signalHandlerExitEnvoy);
     fd_set read_set;
     struct timeval timeout;
     ForkRegneWritesEnvoy infoInicial;
@@ -196,7 +199,7 @@ void runenvoy(int pipeRead, int pipeWrite, Regne *r) {
         }
     }
 
-    printf("Envoy PID %d exiting...\n", getpid());
-    close(pipeRead);
+    printf("Envoy PID %d exiting ...\n", getpid());
+    close(pipeRead); 
     close(pipeWrite);
 }
