@@ -366,6 +366,7 @@ void processarMissatgeEnvoy(Regne *r, EnvoyWritesRegne *msg) {
             
             break;
 
+            //deixo aaquest case per si de cas volem ficar algun printf o algo més endavant
         case 2://list products
             
             break;
@@ -375,7 +376,10 @@ void processarMissatgeEnvoy(Regne *r, EnvoyWritesRegne *msg) {
             break;
         case 4://probelma (acks,conexions, etc) , simplemetn cancelar la missio
                 r->rutes[indexRuta].alianca = 'N';
-                printf("Something went wrong. Mission has failed\n");
+                printString(1,"Something went wrong. Pledge has failed\n");
+        break;
+        case 5:
+                printString(1,"Something went wrong.Try again\n");
         break;
     }
     setEnvoyLliure(r, msg->indexEnvoy);

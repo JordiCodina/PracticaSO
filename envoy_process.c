@@ -102,7 +102,7 @@ void runenvoy(int pipeRead, int pipeWrite, Regne *r) {
 
                     int statusListProducts = listProductsAliat(r, buffer.regneDest, buffer.portDest, buffer.ipDest);
                     if(statusListProducts<0){
-                        notificarRegneErrorMissio(4, pipeWrite, infoInicial, r);
+                        notificarRegneErrorMissio(5, pipeWrite, infoInicial, r);
                     }
                     //aixo ho faig perque pugui alliberar el envoy , ja que s'allibera a la funcio processarMissatge de regne.c
                     response.comanda = 2;
@@ -117,7 +117,7 @@ void runenvoy(int pipeRead, int pipeWrite, Regne *r) {
                     int statusSendTrade = sendTrade( rutaComanda, buffer.regneDest, r, buffer.portDest, buffer.ipDest);
                     free(rutaComanda);
                     if(!statusSendTrade){
-                        notificarRegneErrorMissio(4, pipeWrite, infoInicial, r);
+                        notificarRegneErrorMissio(5, pipeWrite, infoInicial, r);
                     }else{
                         response.comanda = 3;
                         write(pipeWrite, &buffer, sizeof(EnvoyWritesRegne));
