@@ -169,10 +169,7 @@ void runTerminal (Regne *r, char *fitxerStock){
                             break;
                         }
                         if(setEnvoyEnMissio(r, envoyIndex, paraules[2]) == -1) break;
-                        char* miss;
-                        asprintf(&miss, "proces regne.index(%d)) port: %u, ip: %s\n", index, r->rutes[index].portDest, r->rutes[index].ipDest);
-                        printString(1, miss);
-                        free(miss);
+
 
                         ForkRegneWritesEnvoy *frwe = crearForkRegneWritesEnvoy(1,paraules[2],NULL,0,0,0,r->rutes[index].ipDest,r->rutes[index].portDest);
                         write(r->envoys[envoyIndex].pipeWrite, frwe, sizeof(ForkRegneWritesEnvoy));

@@ -16,7 +16,6 @@
 
 #include "producte.h"
 #include "config.h"
-#include "semaphore.h"
 
 
 

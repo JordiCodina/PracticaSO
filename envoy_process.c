@@ -198,8 +198,6 @@ void runenvoy(int pipeRead, int pipeWrite, Regne *r) {
 
         }
     }
-
-    printf("Envoy PID %d exiting ...\n", getpid());
     close(pipeRead); 
     close(pipeWrite);
 }

@@ -24,8 +24,6 @@ typedef struct {
 
     int status; // 0 = lliure, 1 = ON MISSION
     char *nomRegneViatge;
-    //int ackFitxer;
-    //int ackMD5SUM; 
     int pipeRead;
     int pipeWrite;
     pid_t pid;

@@ -16,7 +16,6 @@
 #include "config.h"
 #include "client.h"
 #include "server.h"
-#include "semaphore.h"
 
 
 
@@ -56,8 +55,6 @@ typedef struct _EnvoyWritesRegne {
     int indexRuta;
     unsigned int portDest;
     char ipDest[16];
-
-    
 } EnvoyWritesRegne;
 
 

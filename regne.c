@@ -320,7 +320,6 @@ void processarMissatgeEnvoy(Regne *r, EnvoyWritesRegne *msg) {
         printString(1, "Route not found for the specified Realm.\n");
         return;
     }
-    printf( "Ha arribat un missatge del envoy al regne.\n");
     switch (msg->comanda) {
         case 1://pledge
             if(msg->statusPledge==1){//accpet
@@ -330,21 +329,11 @@ void processarMissatgeEnvoy(Regne *r, EnvoyWritesRegne *msg) {
                 }
                 r->rutes[indexRuta].alianca = 'S';
 
-                char *miss;
-                asprintf(&miss, "old) port: %u, ip: %s\n",r->rutes[indexRuta].portDest, r->rutes[indexRuta].ipDest);
-                printString(1, miss);
-                free(miss);
-
                 //actualitza port
                 r->rutes[indexRuta].portDest = msg->portDest;
                 //actualitza ip
                 free(r->rutes[indexRuta].ipDest);
                 r->rutes[indexRuta].ipDest = strdup(msg->ipDest); 
-
-                
-                asprintf(&miss, "new) port: %u, ip: %s\n",r->rutes[indexRuta].portDest, r->rutes[indexRuta].ipDest);
-                printString(1, miss);
-                free(miss);
 
                 char *buffer;
                 asprintf(&buffer, ">>> Alliance with %s forged successfully!\n", r->rutes[indexRuta].nomDest);
