@@ -514,6 +514,16 @@ Rebre PLEDGE RESPOND
     }
     if (strcasecmp(paraules2[0], "ACCEPT") == 0) {
 
+         int trobarRutaInde=trobarRutaIndex(r,paraules2[1]);
+         if(r->rutes[trobarRutaInde].alianca == 'T') {
+            Trama *nackTimeout = crearTrama(0x69, NULL, 0, NULL, strlen(r->nom), r->nom);
+            enviarTramaDirecte(nackTimeout, atoi(paraules[1]), paraules[0], paraules2[1]);
+            setEnvoyLliure(r, indexEnvoy);
+            freeTokens(paraules, n_paraules);
+            freeTokens(paraules2, n_paraules2);
+            return;
+        }
+
         ForkRegneWritesEnvoy *frwe= crearForkRegneWritesEnvoy(5,paraules2[1], NULL , indexEnvoy, 0, 1, paraules[0], atoi(paraules[1]));
         write(r->envoys[indexEnvoy].pipeWrite,frwe, sizeof(ForkRegneWritesEnvoy));
         free(frwe);
@@ -812,7 +822,16 @@ AQUI ES PROCESSEN TOTES LES TRAMES A PARTIR DEL TIPUS
                 break;
             case 0x69:
                 //printString(1, "Trama error : NACK  rebuda:\n");
-                
+                if(t->dataLength>0){
+                   
+                    for(int i=0;i<r->n_rutes;i++){
+                        if(strcmp(r->rutes[i].nomDest,t->data)==0){
+                            r->rutes[i].alianca='N';
+                            printString(1, "Alliance has been terminated due to timeout.\n");
+                            break;
+                        }
+                    }
+                }
                 break;           
             default:
                 printString(1, "Tipus de trama desconegut.\n");

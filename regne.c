@@ -351,6 +351,8 @@ void processarMissatgeEnvoy(Regne *r, EnvoyWritesRegne *msg) {
                     printString(1, tmp);
                     free(tmp);
                 }
+                r->envoys[msg->indexEnvoy].status = 0;
+                return;
             }
             
             break;
@@ -610,6 +612,7 @@ int trobarEnvoyIndex(Regne *r, const char *regneDest) {
     int indexEnvoy = -1;
     for (int i = 0; i < r->n_envoys; i++)
     {
+
         if (strcmp(r->envoys[i].nomRegneViatge, regneDest) == 0) {
             indexEnvoy = i;
             break;
