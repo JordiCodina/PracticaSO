@@ -409,6 +409,7 @@ void rebreSigil(Regne *r,Trama *t){
             memcpy(ackMD5->data,dataackMD5,strlen(dataackMD5));
             enviarTramaDirecte(ackMD5, atoi(paraules[1]), paraules[0], r->rutes[indexRuta].nomDest);
             r->rutes[indexRuta].ackMD5SUMStatus=0;
+            free(dataackMD5);
         }
         free(md5);
 
@@ -512,8 +513,8 @@ Rebre PLEDGE RESPOND
             freeTokens(paraules2, n_paraules2);
             return -1;
     }
+   
     if (strcasecmp(paraules2[0], "ACCEPT") == 0) {
-
          int trobarRutaInde=trobarRutaIndex(r,paraules2[1]);
          if(r->rutes[trobarRutaInde].alianca == 'T') {
             setEnvoyLliure(r, indexEnvoy);
@@ -532,6 +533,7 @@ Rebre PLEDGE RESPOND
         write(r->envoys[indexEnvoy].pipeWrite,frwe, sizeof(ForkRegneWritesEnvoy));
         free(frwe);
     }
+   
     freeTokens(paraules, n_paraules);
     freeTokens(paraules2, n_paraules2);
     return 1;

@@ -393,7 +393,7 @@ void processarMissatgeEnvoy(Regne *r, EnvoyWritesRegne *msg) {
 }
 
 void readEnvoys(fd_set *fds_set, Regne *r) {
-    for (int i = 0; i < r->n_envoys; i++) {
+    for (int i = 0; i < r->n_envoys; i++) { 
         int fd = r->envoys[i].pipeRead;
         if (FD_ISSET(fd, fds_set)) {
             EnvoyWritesRegne msg;
@@ -627,7 +627,7 @@ int trobarEnvoyIndex(Regne *r, const char *regneDest) {
     int indexEnvoy = -1;
     for (int i = 0; i < r->n_envoys; i++)
     {
-
+        if(r->envoys[i].nomRegneViatge==NULL) continue;
         if (strcmp(r->envoys[i].nomRegneViatge, regneDest) == 0) {
             indexEnvoy = i;
             break;

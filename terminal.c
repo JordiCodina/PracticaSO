@@ -149,7 +149,7 @@ void runTerminal (Regne *r, char *fitxerStock){
                         break;
                     }
                     if(setEnvoyEnMissio(r, envoyIndex, paraules[1]) == -1) break;
-                    ForkRegneWritesEnvoy *frwe = crearForkRegneWritesEnvoy(0,paraules[1],paraules[2],0,0,0,NULL,0);
+                    ForkRegneWritesEnvoy *frwe = crearForkRegneWritesEnvoy(0,paraules[1],paraules[2],envoyIndex,0,0,NULL,0);
                     r->rutes[index].alianca = 'P';
                     write(r->envoys[envoyIndex].pipeWrite, frwe, sizeof(ForkRegneWritesEnvoy));
                     free(frwe);
@@ -171,7 +171,7 @@ void runTerminal (Regne *r, char *fitxerStock){
                         if(setEnvoyEnMissio(r, envoyIndex, paraules[2]) == -1) break;
 
 
-                        ForkRegneWritesEnvoy *frwe = crearForkRegneWritesEnvoy(1,paraules[2],NULL,0,0,0,r->rutes[index].ipDest,r->rutes[index].portDest);
+                        ForkRegneWritesEnvoy *frwe = crearForkRegneWritesEnvoy(1,paraules[2],NULL,envoyIndex,0,0,r->rutes[index].ipDest,r->rutes[index].portDest);
                         write(r->envoys[envoyIndex].pipeWrite, frwe, sizeof(ForkRegneWritesEnvoy));
                         free(frwe);
                         break;  

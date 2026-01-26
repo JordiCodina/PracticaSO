@@ -95,6 +95,7 @@ void runenvoy(int pipeRead, int pipeWrite, Regne *r) {
                     mirarTimeout=0;
                     
                     infoInicial=buffer;
+                    printf("Pledge to %s started in envoy %d\n", infoInicial.regneDest, infoInicial.indexEnvoy);
                     int status = pledgeEnvoyTramaInicial(infoInicial.rutaSegell, infoInicial.regneDest,r);
                     if(!status){
                         notificarRegneErrorMissio(4, pipeWrite, infoInicial, r);
@@ -157,6 +158,7 @@ void runenvoy(int pipeRead, int pipeWrite, Regne *r) {
                     
                     response.comanda = 1;
                     response.indexEnvoy = infoInicial.indexEnvoy;
+                    printf("InfoInicial.indexEnvoy: %d\n", response.indexEnvoy);
                     int indexRuta=trobarRutaIndex(r, infoInicial.regneDest);
                     response.indexRuta=indexRuta;
                     if(indexRuta==-1){
