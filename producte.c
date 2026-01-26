@@ -544,7 +544,7 @@ Producte * crearProductesProvisionals(int n) {
 }
 int comprovarExistexProducte(char *nomProducte, Producte *productesDisponibles, int n_productes){
     for (int i = 0; i < n_productes; i++){
-        if (!strcmp(nomProducte, productesDisponibles[i].name)){
+        if (!strcasecmp(nomProducte, productesDisponibles[i].name)){
             return 1;
         }
     }
@@ -557,7 +557,7 @@ void addProducteTrade(Producte **productes, int *numProductes, char *nomProducte
         return;
     }
     for (int i = 0; i < *numProductes; i++) {//per si el producte existeix
-        if (strcmp((*productes)[i].name, nomProducte) == 0) {
+        if (strcasecmp((*productes)[i].name, nomProducte) == 0) {
             (*productes)[i].amount += quantitat;
             return;
         }
@@ -588,7 +588,7 @@ void removeProducteTrade(Producte **productes, int *numProductes, char *nomProdu
 
     int trobat = 0;
     for (int i = 0; i < *numProductes; i++) {
-        if (strcmp((*productes)[i].name, nomProducte) == 0) {
+        if (strcasecmp((*productes)[i].name, nomProducte) == 0) {
             trobat = 1;
             if ((*productes)[i].amount <= quantitat) {
                 for (int j = i; j < (*numProductes) - 1; j++) {
@@ -720,6 +720,7 @@ void startTrade(Regne *regneActual, char *comand, fd_set *master_set, int *max_f
                     
                     break;
                 }
+
                 nomProducte[0] = '\0';
                 for (int i = 1; i < n_paraules - 1; i++) {
                     strcat(nomProducte, paraulesTrade[i]);
@@ -794,7 +795,7 @@ void startTrade(Regne *regneActual, char *comand, fd_set *master_set, int *max_f
 
 int treureDelStock(Producte *productes, int *n_productes, const char *nom, int quantitat) {
     for (int i = 0; i < *n_productes; i++) {
-        if (strcmp(productes[i].name, nom) == 0) {
+        if (strcasecmp(productes[i].name, nom) == 0) {
             if (productes[i].amount < quantitat)
                 return 0;
             productes[i].amount -= quantitat;
@@ -813,7 +814,7 @@ int treureDelStock(Producte *productes, int *n_productes, const char *nom, int q
 void afegirAlStock(Producte *productes, int *n_productes,const char *nom, int quantitat, float pes){
     for (int i = 0; i < *n_productes; i++) {
 
-        if (strcmp(productes[i].name, nom) == 0) {
+        if (strcasecmp(productes[i].name, nom) == 0) {
             productes[i].amount += quantitat;
             return; // ja està
         }

@@ -136,10 +136,7 @@ void pledgeRespond(Regne *r, char **paraules, int n_paraules) {
             // envia i tanca internament
             Trama *t = crearTrama(0x03, r->ip, r->port,r->rutes[trobat].nomDest, strlen(data), data);
 
-            enviarTramaDirecte(t,
-                               r->rutes[trobat].portDest,
-                               r->rutes[trobat].ipDest,
-                               paraules[2]);
+            enviarTramaDirecte(t,r->rutes[trobat].portDest,r->rutes[trobat].ipDest,paraules[2]);
 
             r->rutes[trobat].alianca = 'N';
             return;
@@ -170,8 +167,26 @@ void pledgeRespond(Regne *r, char **paraules, int n_paraules) {
             
             
             Trama *t_enviar = crearTrama(0x03, r->ip, r->port,r->rutes[trobat].nomDest, strlen(data), data);
-            enviarTramaDirecte(t_enviar,r->rutes[trobat].portDest,r->rutes[trobat].ipDest,paraules[2]);
- 
+            int socketRespond=enviarTramaDirecteSenseTancar(t_enviar,r->rutes[trobat].portDest,r->rutes[trobat].ipDest,paraules[2]);
+            //esperar ack
+            Trama *ack_respond = crearTrama(0, NULL, 0, NULL, 0, NULL);
+            int n2 = read(socketRespond, ack_respond, sizeof(Trama));
+            close(socketRespond);
+            if (n2 <= 0 || (ack_respond->tipus != 0x31 && ack_respond->tipus != 0x69)) {
+                printString(1, "Did not receive ACK/NACK for pledge respond.\n");
+                r->rutes[trobat].alianca = 'N';
+                free(ack_respond);
+                return;
+            }
+
+            if(ack_respond->tipus == 0x69){
+                    r->rutes[trobat].alianca='N';
+                    printString(1, "Alliance has been terminated due to timeout.\n");
+                    free(ack_respond);
+                    return;
+            }
+            free(ack_respond);
+
             char *miss;
             asprintf(&miss, "Alliance with %s established.\n", paraules[2]);
             printString(1, miss);

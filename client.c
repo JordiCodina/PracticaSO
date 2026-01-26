@@ -115,7 +115,7 @@ Trama * crearTrama(char tipus, char *ip, unsigned int port, char *nom_desti, uns
 }
 
 //aquesta funcio busca la seguent ruta (tant si esta directament conectada com si no i llavors s'ha de fer salt) 
-ClientConf *trobarSeguentMaester(Regne *r, Trama *t) {//si troba ip amb * , agafa default
+ClientConf *trobarSeguentMaester(Regne *r, Trama *t) {//si troba ip amb * , agafa default si hi ha
     int trobat = -1;
     for (int i = 0; i < r->n_rutes; i++) {
         if (strcmp(r->rutes[i].nomDest, t->nom_desti) == 0) {
@@ -123,10 +123,24 @@ ClientConf *trobarSeguentMaester(Regne *r, Trama *t) {//si troba ip amb * , agaf
             break;
         }
     }
-    int idx = 0; 
-    if (trobat >= 0 && !teCaracter(r->rutes[trobat].ipDest, '*')) {
-        idx = trobat;
+    if (trobat >= 0 && teCaracter(r->rutes[trobat].ipDest, '*')) {
+        trobat = -1;
     }
+    if(trobat==-1){
+        //mirar si hi ha default , si no retorna null
+        for (int i = 0; i < r->n_rutes; i++) {
+            if (strcmp(r->rutes[i].nomDest, "DEFAULT") == 0) {
+                trobat = i;
+                break;
+            }
+        }
+    }
+    if(trobat==-1){
+        return NULL;
+    }
+    int idx = trobat; 
+    
+
     ClientConf *conf = malloc(sizeof(ClientConf));
     memset(conf, 0, sizeof(ClientConf));
     if (!conf) {
@@ -205,7 +219,7 @@ int  enviarTramaDirecteSenseTancar(Trama *t, unsigned int portDest,char *ipDest,
 int enviarTramaDinamica(Trama *t, Regne *r, int esHopping) {//esHopping = 1 aixi mostra el print de hopping(aixo nomes usar al server.c)
     ClientConf *conf = trobarSeguentMaester(r, t);
     if (!conf) {
-        printString(1, "No s'ha trobat cap ruta per al destí.\n");
+        printString(1, "Could not find route for destination.\n");
         free(t);
         return -1;
     }

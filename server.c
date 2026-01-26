@@ -492,7 +492,7 @@ void rebreSigil(Regne *r,Trama *t){
 Rebre PLEDGE RESPOND
 
 */
- void processarTramaPledgeRespond(Trama *t, Regne *r) {
+ int processarTramaPledgeRespond(Trama *t, Regne *r) {
    
     int n_paraules = 0;
     int n_paraules2 = 0;
@@ -503,25 +503,23 @@ Rebre PLEDGE RESPOND
         freeTokens(paraules, n_paraules);
         freeTokens(paraules2, n_paraules2);
         printString(1, "Pledge respond trama malformed\n");
-        return;
+        return -1;
     }
     int indexEnvoy = trobarEnvoyIndex(r, paraules2[1]);
        if(indexEnvoy==-1){
             printString(1, "No envoy found for the specified realm in pledge respond.\n");
             freeTokens(paraules, n_paraules);
             freeTokens(paraules2, n_paraules2);
-            return;
+            return -1;
     }
     if (strcasecmp(paraules2[0], "ACCEPT") == 0) {
 
          int trobarRutaInde=trobarRutaIndex(r,paraules2[1]);
          if(r->rutes[trobarRutaInde].alianca == 'T') {
-            Trama *nackTimeout = crearTrama(0x69, NULL, 0, NULL, strlen(r->nom), r->nom);
-            enviarTramaDirecte(nackTimeout, atoi(paraules[1]), paraules[0], paraules2[1]);
             setEnvoyLliure(r, indexEnvoy);
             freeTokens(paraules, n_paraules);
             freeTokens(paraules2, n_paraules2);
-            return;
+            return -1;
         }
 
         ForkRegneWritesEnvoy *frwe= crearForkRegneWritesEnvoy(5,paraules2[1], NULL , indexEnvoy, 0, 1, paraules[0], atoi(paraules[1]));
@@ -536,6 +534,7 @@ Rebre PLEDGE RESPOND
     }
     freeTokens(paraules, n_paraules);
     freeTokens(paraules2, n_paraules2);
+    return 1;
 }
 
 /*
@@ -690,7 +689,20 @@ AQUI ES PROCESSEN TOTES LES TRAMES A PARTIR DEL TIPUS
                 rebreSigil(r,t);
                 break;
             case 0x03:
-                processarTramaPledgeRespond(t, r);
+                int status=0;
+                status=processarTramaPledgeRespond(t, r);
+                if(status==-1){
+                    Trama *nackTimeout = crearTrama(0x69, NULL, 0, NULL, strlen(r->nom), r->nom);
+                    //enviarTramaDirecte(nackTimeout, atoi(paraules[1]), paraules[0], paraules2[1]);
+                     enviarTramaSocket(nackTimeout, client_sock);
+                     free(nackTimeout);
+                }else{
+                    Trama *ackTimeout = crearTrama(0x31, r->ip, r->port, r->nom, strlen(r->nom), r->nom);
+                    enviarTramaSocket(ackTimeout, client_sock);
+                    free(ackTimeout);
+                }
+
+                 
                 break;
             case 0x11: 
                 processarTramaLlistarProductes(t, r, client_sock);
