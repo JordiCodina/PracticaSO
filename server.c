@@ -106,51 +106,48 @@ void afegirthreadServidor(Regne *r, ServerThread *st) {
 */
 int processarComandaProductesFitxer(int fdCommandes, int fdStock, Regne *r) {
 
-    //llegir fitxer comandes i actualitzar stock
     int size = 0;
     lseek(fdCommandes, 0, SEEK_SET);
+
     int n_productes = 0;
-    //carregar productes del stock que tens a la carpeta de cada regne
     Producte *productes = extreureProductes(fdStock, &n_productes);
+    if (!productes) return -1;
+
     while (1) {
-        //llegir linia a linia
-        char *data = readUntil(fdCommandes, '-', &size);
-        if (data == NULL) {
-            break;
-        }
+        char *data = readUntil(fdCommandes, '\n', &size);
+        if (!data) break;
 
         int n_paraules = 0;
         char **paraules = tokenizer(data, &n_paraules, ':');
         if (n_paraules == 2) {
             int amount = atoi(paraules[1]);
-            //aquesta funcio treu automaticament els productes i retorna el status
+
             int result = treureDelStock(productes, &n_productes,paraules[0], amount);
-            char *miss3;
-            asprintf(&miss3,"stock%s.db", r->nom);
-            actualitzarProductes(miss3, productes, n_productes);
-            //printString(1, "Stock updated successfully.\n");
-            free(miss3);
-            freeTokens(paraules, n_paraules);
-            free(data);
-            //es comprova els 3 casos que poden haver , 1 es que ha anat b
-            switch (result) {
-                case 0:
-                    free(productes);
-                    return 0;
-                case 1:
-                    break;
-                default:
-                    free(productes);
-                    return -1;
+
+            if (result != 1) {
+                printString(1, "Error processing trade: insufficient stock or product not found\n");
+                freeTokens(paraules, n_paraules);
+                free(data);
+                free(productes);
+                return result; 
             }
-        } else {
-            freeTokens(paraules, n_paraules);
-            free(data);
+        }else{
+            printString(1, "Error processing trade: malformed command entry\n");
         }
+
+        freeTokens(paraules, n_paraules);
+        free(data);
     }
+
+    char *nomFitxer;
+    asprintf(&nomFitxer, "stock%s.db", r->nom);
+    actualitzarProductes(nomFitxer, productes, n_productes);
+    free(nomFitxer);
+
     free(productes);
     return 1;
 }
+
 
 
 /*

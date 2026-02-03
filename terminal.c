@@ -148,6 +148,10 @@ void runTerminal (Regne *r, char *fitxerStock){
                         printString(1, "All envoys are occupied. Your command must wait\n");
                         break;
                     }
+
+                    setEnvoyLliure (r, envoyIndex);
+
+
                     if(setEnvoyEnMissio(r, envoyIndex, paraules[1]) == -1) break;
                     ForkRegneWritesEnvoy *frwe = crearForkRegneWritesEnvoy(0,paraules[1],paraules[2],envoyIndex,0,0,NULL,0);
                     r->rutes[index].alianca = 'P';

@@ -710,6 +710,7 @@ void startTrade(Regne *regneActual, char *comand, fd_set *master_set, int *max_f
             printString(1, "Invalid command\n");
             freeTokens(paraulesTrade, n_paraules);
             printString(1,"Trade> ");
+            free(comandaTrade);
             continue;
         }
 

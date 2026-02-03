@@ -68,6 +68,7 @@ void freeEnvoy(Envoy e){
     if (e.nomRegneViatge != NULL){
         free(e.nomRegneViatge);
     }
+    
 }
 
 void freeRuta(Ruta r){
