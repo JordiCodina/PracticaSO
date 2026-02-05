@@ -51,30 +51,40 @@ void rebreProductes(Regne *r, int socket, Trama *t, char * nomAliat) {
     //comencem a rebre les trames amb les dades del fitxer productes
           
     while (bytesRebuts < fileSize) {
-        Trama tramaRebuda;
-        int n = read(socket, &tramaRebuda, sizeof(Trama));
+      //  Trama tramaRebuda;
+       // int n = read(socket, &tramaRebuda, sizeof(Trama));
+
+        Trama *tramaRebuda=crearTrama(0, NULL, 0, NULL, 0, NULL);
+        int n=ferReadSocketSerialitzat(socket,tramaRebuda);
+
+
         if (n <= 0) {
             printString(1, "Connection closed before inventory was complete.\n");
             close(fd);
             free(fitxerPath);
             free(missDir);
             freeTokens(paraules, n_paraules);
+            free(tramaRebuda);
             return;
         }
 
-        if (tramaRebuda.tipus != 0x13) {
+        if (tramaRebuda->tipus != 0x13) {
             printString(1, "Trama is incorrect\n");
             close(fd);
             free(fitxerPath);
             free(missDir);
             freeTokens(paraules, n_paraules);
+            free(tramaRebuda);
             return;
         }
         //escrivim les dades rebudes al fitxer temp de la carpeta del regne 
-        write(fd, tramaRebuda.data, tramaRebuda.dataLength);
-        bytesRebuts += tramaRebuda.dataLength;
+        write(fd, tramaRebuda->data, tramaRebuda->dataLength);
+        bytesRebuts += tramaRebuda->dataLength;
+         free(tramaRebuda);
     }
     close(fd);
+   
+
   
     char *md5 = calcularMD5SUM(fitxerPath);
     if (!md5) {
@@ -158,7 +168,8 @@ int listProductsAliat(Regne *r, char *nomAliat/*,int* exitFlag*/,unsigned int po
     printString(1, "Waiting for product list from ally...\n");
 
     Trama *tramaPeticioLlista = crearTrama(0, NULL, 0, NULL, 0, NULL);
-    int n=read(socket, tramaPeticioLlista, sizeof(Trama));
+    //int n=read(socket, tramaPeticioLlista, sizeof(Trama));
+    int n=ferReadSocketSerialitzat(socket,tramaPeticioLlista);
     if(n<=0){
         free(tramaPeticioLlista);
         printString(1, "Did not receive product list from ally.\n");
@@ -365,7 +376,8 @@ int sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r,unsigned int portDe
     }
     //eseperar ack/nack de la comanda
     Trama * ackPeticioComanda=crearTrama(0, NULL, 0, NULL, 0, NULL);
-    int n=read(socket, ackPeticioComanda, sizeof(Trama));
+    //int n=read(socket, ackPeticioComanda, sizeof(Trama));
+    int n=ferReadSocketSerialitzat(socket,ackPeticioComanda);
     if(n<=0){
         free(ackPeticioComanda);
         printString(1, "Did not receive ACK/NACK for trade request.\n");
@@ -415,7 +427,8 @@ int sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r,unsigned int portDe
         close(fdList);
         //esperar ack/nack amb md5
             Trama *tramaPeticioComandaAckmd5=crearTrama(0, NULL, 0, NULL, 0, NULL);
-        int n4=read(socket, tramaPeticioComandaAckmd5, sizeof(Trama));
+        //int n4=read(socket, tramaPeticioComandaAckmd5, sizeof(Trama));
+        int n4=ferReadSocketSerialitzat(socket,tramaPeticioComandaAckmd5);
         if(n4<=0){
             free(tramaPeticioComandaAckmd5);
             printString(1, "Did not receive ACK/NACK for trade list.\n");
@@ -441,7 +454,8 @@ int sendTrade( char *nomFitxer, char *nomRegneDest, Regne *r,unsigned int portDe
      free(miss);
     //LLEGEIR TRAMA 0X16
     Trama *tramaConfirmacioComanda=crearTrama(0, NULL, 0, NULL, 0, NULL);
-    int n2=read(socket, tramaConfirmacioComanda, sizeof(Trama));
+    //int n2=read(socket, tramaConfirmacioComanda, sizeof(Trama));
+    int n2=ferReadSocketSerialitzat(socket,tramaConfirmacioComanda);
     if(n2<=0){
         close(fdList);
         free(nomFitxer);
@@ -651,6 +665,7 @@ void startTrade(Regne *regneActual, char *comand, fd_set *master_set, int *max_f
     free(miss);
     //obrim el fitxer de productes disponibles que tenim guardat a la nostre carpeta depres de fer LIST PRODUCTS
     char*missDir;
+     SEM_wait(&regneActual->mutexLectura);
     asprintf(&missDir, "./%s/stock%s.db",regneActual->nom,nomRegneDest);
     int fdFitxerProductes = open(missDir, O_RDONLY);
     if (fdFitxerProductes == -1) {
@@ -665,6 +680,7 @@ void startTrade(Regne *regneActual, char *comand, fd_set *master_set, int *max_f
     productesDisponibles = extreureProductes(fdFitxerProductes, &n_productesDisponibles);
     //printf
     listProductsMaesterAliat(productesDisponibles, n_productesDisponibles, nomRegneDest);
+     SEM_signal(&regneActual->mutexLectura);
     if (productesDisponibles == NULL || n_productesDisponibles == 0) {
         printString(1, "No products available . Use LIST PRODUCTS first.\n");
         close(fdFitxerProductes);

@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include "funcions_basiques.h"
+#include "semaphore.h"
 
 
 typedef struct
@@ -71,6 +72,8 @@ typedef struct  {
 
     ServerThread **st;
     int n_serverThreads;
+
+    semaphore * mutexLectura;
 
 } Regne;
 

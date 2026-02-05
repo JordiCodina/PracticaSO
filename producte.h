@@ -13,6 +13,7 @@
 #include "config.h"
 #include "client.h"
 #include "regne.h"
+#include "semaphore.h"
 
 #define FILENAME_STOCK_SIZE 100
 

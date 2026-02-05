@@ -181,7 +181,9 @@ void runTerminal (Regne *r, char *fitxerStock){
                         break;  
                     } 
                     else if(n_paraules == 2){
+                         SEM_wait(&r->mutexLectura);
                         listProductsMaester(fitxerStock,0,"Maester");
+                        SEM_signal(&r->mutexLectura);
                     }else{
                         printString(1, "unknown command\n");
                     }

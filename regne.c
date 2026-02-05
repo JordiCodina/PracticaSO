@@ -155,7 +155,8 @@ void pledgeRespond(Regne *r, char **paraules, int n_paraules) {
             int socketPing=enviarTramaDirecteSenseTancar(ping, r->rutes[trobat].portDest, r->rutes[trobat].ipDest, r->rutes[trobat].nomDest);//sallibera trama ping aqui
             //PONG
             Trama * pong = crearTrama(0x00,NULL,0,NULL,0,NULL);
-            int n1 = read(socketPing, pong, sizeof(Trama));
+            //int n1 = read(socketPing, pong, sizeof(Trama));
+            int n1 = ferReadSocketSerialitzat(socketPing, pong);
             close(socketPing);
             if (n1 <= 0 || pong->tipus != 0x26) {
                 free(pong);
@@ -170,7 +171,8 @@ void pledgeRespond(Regne *r, char **paraules, int n_paraules) {
             int socketRespond=enviarTramaDirecteSenseTancar(t_enviar,r->rutes[trobat].portDest,r->rutes[trobat].ipDest,paraules[2]);
             //esperar ack
             Trama *ack_respond = crearTrama(0, NULL, 0, NULL, 0, NULL);
-            int n2 = read(socketRespond, ack_respond, sizeof(Trama));
+            //int n2 = read(socketRespond, ack_respond, sizeof(Trama));
+            int n2 = ferReadSocketSerialitzat(socketRespond, ack_respond);
             close(socketRespond);
             if (n2 <= 0 || (ack_respond->tipus != 0x31 && ack_respond->tipus != 0x69)) {
                 printString(1, "Did not receive ACK/NACK for pledge respond.\n");

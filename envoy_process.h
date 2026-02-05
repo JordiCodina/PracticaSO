@@ -13,6 +13,7 @@
 #include <signal.h>
 
 #include "regne.h"
+#include "semaphore.h"
 
 void runenvoy( int pipeRead, int pipeWrite,Regne *r) ;
 #endif

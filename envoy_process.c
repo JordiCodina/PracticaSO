@@ -102,8 +102,9 @@ void runenvoy(int pipeRead, int pipeWrite, Regne *r) {
 
                     break;
                 case 1: // LIST PRODUCTS
-
+                   
                     int statusListProducts = listProductsAliat(r, buffer.regneDest, buffer.portDest, buffer.ipDest);
+                    
                     if(statusListProducts<0){
                         notificarRegneErrorMissio(5, pipeWrite, infoInicial, r);
                     }
@@ -117,7 +118,9 @@ void runenvoy(int pipeRead, int pipeWrite, Regne *r) {
                         return; //cas imposible
                     }*/
                     char *rutaComanda = crearRutaComanda( r->rutaArxius, r->nom, buffer.regneDest);
+                    SEM_wait(&r->mutexLectura);
                     int statusSendTrade = sendTrade( rutaComanda, buffer.regneDest, r, buffer.portDest, buffer.ipDest);
+                    SEM_signal(&r->mutexLectura);
                     free(rutaComanda);
                     if(!statusSendTrade){
                         notificarRegneErrorMissio(5, pipeWrite, infoInicial, r);

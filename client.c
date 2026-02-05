@@ -246,7 +246,9 @@ void enviarTramaSocket(Trama *t, int socket) {
         printString(1, "Socket no vàlid per enviar la trama.\n");
         return;
     }
-    write(socket, t, sizeof(Trama));
+
+    //write(socket, t, sizeof(Trama));
+    ferWriteSocektSerialitzat(socket, t);
 }
 
 /*
@@ -287,7 +289,8 @@ int conectarClient_EnviarTrama_FerClose(ClientConf *conf)
     if (client_sock < 0) {
         return -1;  
     }
-    write(client_sock, conf->trama, sizeof(Trama));
+   // write(client_sock, conf->trama, sizeof(Trama));
+    ferWriteSocektSerialitzat(client_sock, conf->trama);
     close(client_sock);
     return client_sock;
 
@@ -300,10 +303,33 @@ int conectarClient_EnviarTrama(ClientConf *conf)
         printString(1, "ClientConf és NULL\n");
         return -1;  
     }
-    write(client_sock, conf->trama, sizeof(Trama));
-  
+    //write(client_sock, conf->trama, sizeof(Trama));
+    ferWriteSocektSerialitzat(client_sock, conf->trama);
+   
     return client_sock;
+    
+}
 
+void ferWriteSocektSerialitzat(int socket, Trama *t){
+    unsigned char *serializationBuffer = malloc(sizeof(char) * 320);
+    memset(serializationBuffer, 0, sizeof(char) * 320);
+    memcpy(serializationBuffer, t, 320);
+    write(socket, serializationBuffer, 320);
+    free(serializationBuffer);
+}
+
+int ferReadSocketSerialitzat(int socket, Trama *t){
+    unsigned char *serializationBuffer = malloc(sizeof(char) * 320);
+    memset(serializationBuffer, 0, sizeof(char) * 320);
+    ssize_t bytesRead = read(socket, serializationBuffer, 320);
+    if (bytesRead <= 319) {
+        printString(1, "Error reading from socket or connection closed.\n");
+        free(serializationBuffer);
+        return 0;
+    }
+    memcpy(t, serializationBuffer, 320);
+    free(serializationBuffer);
+    return 1;
 }
 
 

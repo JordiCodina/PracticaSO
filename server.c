@@ -108,22 +108,17 @@ int processarComandaProductesFitxer(int fdCommandes, int fdStock, Regne *r) {
 
     int size = 0;
     lseek(fdCommandes, 0, SEEK_SET);
-
     int n_productes = 0;
     Producte *productes = extreureProductes(fdStock, &n_productes);
     if (!productes) return -1;
-
     while (1) {
         char *data = readUntil(fdCommandes, '\n', &size);
         if (!data) break;
-
         int n_paraules = 0;
         char **paraules = tokenizer(data, &n_paraules, ':');
         if (n_paraules == 2) {
             int amount = atoi(paraules[1]);
-
             int result = treureDelStock(productes, &n_productes,paraules[0], amount);
-
             if (result != 1) {
                 printString(1, "Error processing trade: insufficient stock or product not found\n");
                 freeTokens(paraules, n_paraules);
@@ -134,16 +129,13 @@ int processarComandaProductesFitxer(int fdCommandes, int fdStock, Regne *r) {
         }else{
             printString(1, "Error processing trade: malformed command entry\n");
         }
-
         freeTokens(paraules, n_paraules);
         free(data);
     }
-
     char *nomFitxer;
     asprintf(&nomFitxer, "stock%s.db", r->nom);
     actualitzarProductes(nomFitxer, productes, n_productes);
     free(nomFitxer);
-
     free(productes);
     return 1;
 }
@@ -704,8 +696,9 @@ AQUI ES PROCESSEN TOTES LES TRAMES A PARTIR DEL TIPUS
                  
                 break;
             case 0x11: 
+                SEM_wait(&r->mutexLectura);
                 processarTramaLlistarProductes(t, r, client_sock);
-                
+                SEM_signal(&r->mutexLectura);
                 break;
             case 0x12:
                 printString(1, "Trama resposta llistar productes rebuda:\n");
@@ -911,16 +904,11 @@ void* runServer(void *arg) {
     ServerThread *st = tus->st;
     free(tus);
     Trama* t = crearTrama(0, "", 0, "", 0, "");
-    ssize_t servRead = read(st->client_fd, t, sizeof(Trama));
-    if (servRead <= 0) {
+    //ssize_t servRead = read(st->client_fd, t, sizeof(Trama));
+    int statusRead = ferReadSocketSerialitzat(st->client_fd, t);
+    if (statusRead <= 0) {
         //printString(1, "Connexió tancada o error.\n");
         close(st->client_fd);
-        free(t);
-        st->thread_complete = THREAD_DONE;
-        return NULL;
-    }
-    if (servRead != sizeof(Trama)) {
-        printString(1, "Trama rebuda incompleta.\n");
         free(t);
         st->thread_complete = THREAD_DONE;
         return NULL;

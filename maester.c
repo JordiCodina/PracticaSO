@@ -19,6 +19,7 @@
 #include "server.h"
 #include "client.h"
 #include "envoy_process.h"
+#include "semaphore.h"
 
 
 
@@ -43,6 +44,8 @@ int main (int argc, char *argv[]){
 
     Regne *r = extractInfo (argv[1]);
     
+    SEM_constructor(&r->mutexLectura);  
+    SEM_init(&r->mutexLectura, 1);
     for (int i = 0; i < r->n_envoys; i++) {
 
         int pipePareFill[2];
@@ -95,6 +98,10 @@ int main (int argc, char *argv[]){
     
     //borrar directori antic si existeix  
     borrarDirectori(r->rutaArxius);
+
+  
+    
+
     //iniciar terminal
     runTerminal(r, fitxerStock);
 
@@ -109,6 +116,7 @@ int main (int argc, char *argv[]){
             close(r->envoys[j].pipeWrite);
             waitpid(r->envoys[j].pid, NULL, 0);
     }
+    SEM_destructor(&r->mutexLectura);
 
 
     close(r->fd_server);
