@@ -31,11 +31,13 @@ int SEM_destructor(const semaphore * sem)
 int SEM_wait(const semaphore * sem)
 {
     struct sembuf o = {0, -1, SEM_UNDO};
+    assert(sem != NULL);
     return semop(sem->shmid, &o, 1);
 }
 
 int SEM_signal(const semaphore * sem)
 {
     struct sembuf o = {0, 1, SEM_UNDO};
+    assert(sem != NULL);
     return semop(sem->shmid, &o, 1);
 }

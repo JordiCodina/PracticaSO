@@ -73,7 +73,7 @@ typedef struct  {
     ServerThread **st;
     int n_serverThreads;
 
-    semaphore * mutexLectura;
+    semaphore  mutexLectura;
 
 } Regne;
 
