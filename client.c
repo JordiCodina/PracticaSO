@@ -310,13 +310,39 @@ int conectarClient_EnviarTrama(ClientConf *conf)
     
 }
 
-void ferWriteSocektSerialitzat(int socket, Trama *t){
-    unsigned char *serializationBuffer = malloc(sizeof(char) * 320);
-    memset(serializationBuffer, 0, sizeof(char) * 320);
-    memcpy(serializationBuffer, t, 320);
-    write(socket, serializationBuffer, 320);
-    free(serializationBuffer);
+/*
+
+typedef struct {
+    unsigned char tipus;               
+    char nom_origen[20];  // ip:port          
+    char nom_desti[20];         
+    unsigned short dataLength;          
+    char data[DATA_SIZE];          
+    unsigned short checksum;             
+} Trama;
+*/
+void ferWriteSocektSerialitzat(int socket, Trama *t) {
+
+    char bufferSerialitzat[320];
+    int offset=0;
+    int i=0;
+    memset(bufferSerialitzat, 0, 320);
+    bufferSerialitzat[offset++] = t->tipus;
+    for (i=0; i<20; i++)bufferSerialitzat[offset++] = t->nom_origen[i];
+    for (i=0; i<20; i++)bufferSerialitzat[offset++] = t->nom_desti[i];
+    bufferSerialitzat[offset++] = ((unsigned char*)&t->dataLength)[0];
+    bufferSerialitzat[offset++] = ((unsigned char*)&t->dataLength)[1];
+    for (i=0; i<275; i++)bufferSerialitzat[offset++] = t->data[i];
+    bufferSerialitzat[offset++] = ((unsigned char*)&t->checksum)[0];
+    bufferSerialitzat[offset++] = ((unsigned char*)&t->checksum)[1];
+    if(offset != 320){
+        printString(1, "Error serializing trama: incorrect size.\n");//cas impossible
+        return;
+    }
+    write(socket, bufferSerialitzat, 320); 
 }
+
+
 
 int ferReadSocketSerialitzat(int socket, Trama *t){
     unsigned char *serializationBuffer = malloc(sizeof(char) * 320);
@@ -327,10 +353,18 @@ int ferReadSocketSerialitzat(int socket, Trama *t){
         free(serializationBuffer);
         return 0;
     }
-    memcpy(t, serializationBuffer, 320);
+    t->tipus = serializationBuffer[0];
+    memcpy(t->nom_origen, &serializationBuffer[1], 20);
+    memcpy(t->nom_desti, &serializationBuffer[21], 20);
+    t->dataLength = (serializationBuffer[42] << 8) | serializationBuffer[41];
+    memcpy(t->data, &serializationBuffer[43], 275);
+    t->checksum = (serializationBuffer[319] << 8) | serializationBuffer[318];
     free(serializationBuffer);
     return 1;
 }
+
+/*
+*/
 
 
 

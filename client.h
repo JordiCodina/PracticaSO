@@ -116,7 +116,7 @@ int conectarClient_EnviarTrama_FerClose(ClientConf *conf);
 
 int conectarClient_EnviarTrama(ClientConf *conf);
 
-
+void ferWriteSocektSerialitzat(int socket, Trama *t);
 int ferReadSocketSerialitzat(int socket, Trama *t);
 
 #endif

@@ -214,7 +214,9 @@ void rebreComandaProductes (Trama *t, Regne *r, int client_sock){
                     return;
             }
             Trama tramaRebuda;
-            int n = read(client_sock, &tramaRebuda, sizeof(Trama));
+
+            //int n = read(client_sock, &tramaRebuda, sizeof(Trama));
+            int n = ferReadSocketSerialitzat(client_sock, &tramaRebuda);
             if (n <= 0) {
                 printString(1, "Connection closed before shopping list was complete.\n");
                  freeTokens(paraules, n_paraules);
@@ -278,6 +280,7 @@ void rebreComandaProductes (Trama *t, Regne *r, int client_sock){
         free(nomFitxer);
 
         //processar comanda i actualitzar stock
+        SEM_wait(&r->mutexLectura);
         char *stockFile;
         asprintf(&stockFile, "stock%s.db",r->nom);
         int fdStock = open(stockFile, O_RDWR);
@@ -285,7 +288,7 @@ void rebreComandaProductes (Trama *t, Regne *r, int client_sock){
             printString(1, "Error opening stock file to read/write\n");
             close(fdCommandes);
             free(stockFile);
-           
+           SEM_signal(&r->mutexLectura);
             return;
         }
 
@@ -306,6 +309,7 @@ void rebreComandaProductes (Trama *t, Regne *r, int client_sock){
             snprintf(dataRes, DATA_SIZE, "REJECT&UNKNOWN_PRODUCT");
             printString(1, ">>> Order rejected. Unknown product in order.\n");
         }
+         SEM_signal(&r->mutexLectura);
     Trama * tramaRespostaComanda=crearTrama(0x16, r->ip, r->port, r->rutes[indexAliat].nomDest, strlen(dataRes), dataRes);
     enviarTramaSocket(tramaRespostaComanda, client_sock);
     free(tramaRespostaComanda);
@@ -610,7 +614,10 @@ void processarTramaLlistarProductes(Trama *t, Regne *r,int client_sock) {
         
 
         Trama * acktrama=crearTrama(0, NULL, 0, NULL, 0, NULL);
-        int n=read(client_sock, acktrama, sizeof(Trama));
+        
+
+        //int n=read(client_sock, acktrama, sizeof(Trama));
+        int n = ferReadSocketSerialitzat(client_sock, acktrama);
         if(n<=0){
             free(acktrama);
             printString(1, "Did not receive ACK/NACK for product list.\n");
@@ -913,6 +920,8 @@ void* runServer(void *arg) {
         st->thread_complete = THREAD_DONE;
         return NULL;
     }
+
+    
 
     if (esTramaEspecial(t->tipus)) {//trames com acks que si no posem aixo mai trobarien un match del nomDest ja que  els camps estan buits
         processarTrama(t, r, st->client_fd);

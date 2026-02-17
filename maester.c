@@ -34,6 +34,7 @@ void signalHandler() {
 }
 
 int main (int argc, char *argv[]){
+    
     if (argc != 3) {
         printString(1,"Incorrect arguments : Maester <realm_name> <stock_file>\n");
         return 1; 
@@ -121,6 +122,8 @@ int main (int argc, char *argv[]){
 
     close(r->fd_server);
     freeRegne(r);
+
+
 
     return 0;     
 }
